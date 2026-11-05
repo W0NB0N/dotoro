@@ -1,0 +1,10 @@
+{
+  // Cloudflare Workers static-assets deploy: serves the built PWA, no server code.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dotoro",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./apps/web/dist",
+    "not_found_handling": "single-page-application"
+  }
+}

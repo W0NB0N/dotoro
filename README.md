@@ -80,14 +80,15 @@ To regenerate the fixtures (needs the prototype's venv):
 DOTORO_DUMP=1 pnpm test   # writes Python|TS comparison PNGs to packages/apps/test/__out__/
 ```
 
-## Deploying (Cloudflare Pages)
+## Deploying (Cloudflare Workers, static assets)
 
-Static site, built from the repo root:
+`wrangler.jsonc` serves `apps/web/dist` as static assets (no Worker code). In the Cloudflare
+dashboard (Workers & Pages -> import the GitHub repo):
 
 | Setting | Value |
 | --- | --- |
 | Build command | `pnpm build` |
-| Build output directory | `apps/web/dist` |
+| Deploy command | `npx wrangler deploy` |
 | Root directory | *(repo root, leave empty)* |
 | Env vars | `NODE_VERSION=24`, `PNPM_VERSION=11.24.0` |
 
