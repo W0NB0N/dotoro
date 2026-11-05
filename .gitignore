@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+# rendered debug frames from tests
+packages/*/test/__out__/

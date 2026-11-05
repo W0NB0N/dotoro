@@ -1,0 +1,22 @@
+{
+  "$comment": "Source assets -> packages/apps/assets/*.json via `pnpm assets`. quantize = merge colors whose channels differ by <= N (cleans noisy exports). alpha = keep transparency (default: ignore alpha, like the prototype).",
+  "system": {
+    "boot": { "src": "system/dotoro-boot.gif" },
+    "vfdTemplate": { "src": "system/ui-timer-off.png", "quantize": 8 },
+    "vfdFocus1": { "src": "system/focus-1.png", "quantize": 8 },
+    "vfdRest1": { "src": "system/rest-1.png", "quantize": 8 },
+    "vfdFocus2": { "src": "system/focus-2.png", "quantize": 8 },
+    "vfdRest2": { "src": "system/rest-2.png", "quantize": 8 }
+  },
+  "gallery": [
+    { "name": "Sunset", "src": "gallery/sunset.png", "alpha": true },
+    { "name": "Coffee", "src": "gallery/coffee.png", "alpha": true },
+    { "name": "Heart", "src": "gallery/heart.png", "alpha": true },
+    { "name": "Logo", "src": "gallery/logo.png", "alpha": true },
+    { "name": "Dotoro Boot", "src": "system/dotoro-boot.gif" },
+    { "name": "Hamburgurrr", "src": "gallery/Hamburgurrr.gif" },
+    { "name": "Miku", "src": "gallery/Miku.gif" },
+    { "name": "Pepe", "src": "gallery/Pepe.gif" },
+    { "name": "Reze", "src": "gallery/Reze.gif" }
+  ]
+}

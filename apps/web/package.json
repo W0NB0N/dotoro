@@ -1,0 +1,32 @@
+{
+  "name": "@dotoro/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@dotoro/apps": "workspace:*",
+    "@dotoro/kernel": "workspace:*",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.187.0",
+    "workbox-window": "^7.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.187.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "typescript": "^7.0.2",
+    "vite": "8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "workbox-build": "^7.4.1"
+  }
+}
