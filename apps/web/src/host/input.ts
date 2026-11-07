@@ -115,5 +115,6 @@ export const KEY_HELP: { keys: string; action: string }[] = [
   { keys: 'M / Esc', action: 'Menu' },
   { keys: 'B / P', action: 'Power on / off' },
   { keys: 'Click 3D keys', action: 'Press (hold to repeat)' },
+  { keys: 'Double-click screen', action: 'Zoom in / out' },
   { keys: 'Drag', action: 'Look around' },
 ];

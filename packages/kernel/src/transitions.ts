@@ -1,4 +1,5 @@
 import type { Framebuffer } from './framebuffer';
+import { mix } from './color';
 
 export type TransitionKind = 'cut' | 'dissolve' | 'wipe-left' | 'wipe-down';
 
@@ -38,4 +39,44 @@ export function applyTransition(kind: TransitionKind, from: Framebuffer, target:
       if (!showNew) dst[i] = src[i]!;
     }
   }
+}
+
+const CRT_WHITE = 0xffffff;
+const CRT_SQUASH_END = 0.55;
+const CRT_LINE_END = 0.85;
+
+/**
+ * CRT shutdown drawn on the pixel grid: `from` squashes into a bright horizontal line, the line
+ * shrinks to a dot, and the dot fades out. `t` runs from 0 (full picture) to 1 (black); running
+ * it backwards gives the power-on.
+ */
+export function crtPower(from: Framebuffer, out: Framebuffer, t: number): void {
+  const { width, height } = out;
+  out.fill(0);
+  if (t >= 1) return;
+  const midX = width >> 1;
+  const midY = height >> 1;
+
+  if (t < CRT_SQUASH_END) {
+    const p = t / CRT_SQUASH_END;
+    const e = p * p;
+    const half = Math.max(1, Math.round(midY * (1 - e)));
+    const glow = e * e;
+    for (let y = midY - half; y < midY + half; y++) {
+      const srcY = Math.floor(((y - midY + half + 0.5) / (half * 2)) * height);
+      for (let x = 0; x < width; x++) out.set(x, y, mix(from.get(x, srcY), CRT_WHITE, glow));
+    }
+    return;
+  }
+
+  if (t < CRT_LINE_END) {
+    const p = (t - CRT_SQUASH_END) / (CRT_LINE_END - CRT_SQUASH_END);
+    const half = Math.max(1, Math.round(midX * (1 - p * p)));
+    for (let x = midX - half; x < midX + half; x++) out.set(x, midY, CRT_WHITE);
+    return;
+  }
+
+  const fade = mix(CRT_WHITE, 0, (t - CRT_LINE_END) / (1 - CRT_LINE_END));
+  out.set(midX - 1, midY, fade);
+  out.set(midX, midY, fade);
 }

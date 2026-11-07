@@ -1,21 +1,58 @@
 import { ContactShadows, Environment, Lightformer, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Suspense, useRef } from 'react';
+import { type ComponentRef, Suspense, useRef } from 'react';
 import * as THREE from 'three';
-import { DotoroModel } from './DotoroModel';
+import { DotoroModel, type ScreenPose } from './DotoroModel';
 
 const HOME_POSITION = new THREE.Vector3(0, 0.45, 4.75);
 const HOME_TARGET = new THREE.Vector3(0, -0.05, 0);
 
-/** When the user lets go after orbiting, ease back to the home view with a faint idle drift. */
-function CameraRig({ dragging }: { dragging: React.RefObject<boolean> }) {
+/** The screen's share of the view when zoomed. */
+const ZOOM_FIT = 0.8;
+const ZOOM_DRIFT = 0.25;
+
+const goalPosition = new THREE.Vector3();
+const goalTarget = new THREE.Vector3();
+
+interface RigProps {
+  dragging: React.RefObject<boolean>;
+  zoomed: React.RefObject<boolean>;
+  screenPose: React.RefObject<ScreenPose | null>;
+  controls: React.RefObject<ComponentRef<typeof OrbitControls> | null>;
+}
+
+/**
+ * Eases to the home view, or square-on to the screen when zoomed, whenever the user isn't orbiting.
+ * A faint idle drift keeps the scene alive.
+ */
+function CameraRig({ dragging, zoomed, screenPose, controls }: RigProps) {
+  const target = useRef(HOME_TARGET.clone());
+
   useFrame((state, delta) => {
     if (dragging.current) return;
-    state.camera.position.lerp(HOME_POSITION, Math.min(1, 4 * delta));
+    const camera = state.camera as THREE.PerspectiveCamera;
+    const pose = zoomed.current ? screenPose.current : null;
+    if (pose) {
+      const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const fillHeight = pose.v.length() / tan;
+      const fillWidth = pose.u.length() / (tan * camera.aspect);
+      goalTarget.copy(pose.center);
+      goalPosition.copy(pose.center).addScaledVector(pose.normal, Math.max(fillHeight, fillWidth) / ZOOM_FIT);
+    } else {
+      goalTarget.copy(HOME_TARGET);
+      goalPosition.copy(HOME_POSITION);
+    }
+
+    const ease = Math.min(1, 4 * delta);
+    camera.position.lerp(goalPosition, ease);
+    target.current.lerp(goalTarget, ease);
+    controls.current?.target.copy(target.current);
+
+    const drift = pose ? ZOOM_DRIFT : 1;
     const t = state.clock.elapsedTime;
-    state.camera.position.x += Math.sin(t * 0.7) * 0.003 + Math.sin(t * 1.35) * 0.0015;
-    state.camera.position.y += Math.sin(t * 0.5) * 0.002 + Math.cos(t * 1.15) * 0.001;
-    state.camera.lookAt(HOME_TARGET);
+    camera.position.x += (Math.sin(t * 0.7) * 0.003 + Math.sin(t * 1.35) * 0.0015) * drift;
+    camera.position.y += (Math.sin(t * 0.5) * 0.002 + Math.cos(t * 1.15) * 0.001) * drift;
+    camera.lookAt(target.current);
   });
   return null;
 }
@@ -49,6 +86,9 @@ function Lighting({ accent }: { accent: string }) {
 
 export function Scene({ accent }: { accent: string }) {
   const dragging = useRef(false);
+  const zoomed = useRef(false);
+  const screenPose = useRef<ScreenPose | null>(null);
+  const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   return (
     <Canvas
       shadows="percentage"
@@ -56,16 +96,20 @@ export function Scene({ accent }: { accent: string }) {
       camera={{ position: HOME_POSITION.toArray(), fov: 42 }}
       gl={{ antialias: true, alpha: true }}
       style={{ background: 'transparent', touchAction: 'none' }}
+      onPointerMissed={(e) => {
+        if (e.type === 'dblclick') zoomed.current = false;
+      }}
     >
       <Lighting accent={accent} />
       <Suspense fallback={null}>
         <group position={[0, -0.75, 0]}>
-          <DotoroModel />
+          <DotoroModel screenPose={screenPose} onScreenDoubleClick={() => (zoomed.current = !zoomed.current)} />
         </group>
       </Suspense>
       <ContactShadows position={[0, -0.74, 0]} opacity={0.55} scale={5} blur={2.2} far={1.5} />
-      <CameraRig dragging={dragging} />
+      <CameraRig dragging={dragging} zoomed={zoomed} screenPose={screenPose} controls={controls} />
       <OrbitControls
+        ref={controls}
         target={HOME_TARGET.toArray()}
         enableZoom={false}
         enablePan={false}

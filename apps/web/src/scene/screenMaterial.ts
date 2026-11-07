@@ -1,5 +1,6 @@
-import type { Kernel } from '@dotoro/kernel';
+import { Framebuffer, type Kernel, crtPower } from '@dotoro/kernel';
 import * as THREE from 'three';
+import { createGlowUniforms } from './screenGlow';
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -9,51 +10,41 @@ const vertexShader = /* glsl */ `
   }
 `;
 
-// Each kernel pixel becomes a crisp LED/CRT cell: nearest sampling, a soft gap between cells,
-// faint rolling scanlines and a vignette. `uPower` drives the CRT power-on/off line animation.
+// Pixels sit edge to edge with no gaps, and each one bleeds softly into its neighbours. Sampling at
+// texel centres at LOD 0 keeps them crisp even though the texture is mipmapped for the glow.
+// The vignette is a fit of the prototype's vignette.png (the same falloff on each axis, multiplied)
+// at the prototype's 65% blend. It goes with the picture, so a screen that is off is plain glass.
 const fragmentShader = /* glsl */ `
   uniform sampler2D uScreen;
-  uniform float uTime;
-  uniform float uPower;
   uniform float uBrightness;
+  uniform float uLit;
   varying vec2 vUv;
 
   void main() {
-    vec2 uv = vUv;
-    vec2 cell = uv * 32.0;
-    vec2 f = fract(cell);
-    vec3 color = texture2D(uScreen, (floor(cell) + 0.5) / 32.0).rgb;
+    vec3 color = textureLod(uScreen, (floor(vUv * 32.0) + 0.5) / 32.0, 0.0).rgb;
+    color += textureLod(uScreen, vUv, 1.5).rgb * 0.09;
+    color *= uBrightness;
 
-    float edge = 0.09;
-    float m = smoothstep(0.0, edge, f.x) * smoothstep(1.0, 1.0 - edge, f.x)
-            * smoothstep(0.0, edge, f.y) * smoothstep(1.0, 1.0 - edge, f.y);
-    color *= mix(0.62, 1.0, m);
+    vec2 falloff = 0.32 + 0.68 * sqrt(max(4.0 * vUv * (1.0 - vUv), 0.0));
+    float vignette = pow(mix(1.0, falloff.x * falloff.y, 0.65 * uLit), 2.2);
 
-    color *= 0.93 + 0.07 * sin((uv.y * 96.0 - uTime * 1.5) * 6.2831853);
-
-    vec2 d = uv - 0.5;
-    color *= 1.0 - dot(d, d) * 0.8;
-
-    // CRT power line: vertical extent grows from a thin line, then fills
-    float open = smoothstep(0.0, 0.55, uPower);
-    float lineH = mix(0.004, 0.5, smoothstep(0.35, 1.0, uPower));
-    float inside = 1.0 - smoothstep(lineH, lineH + 0.01, abs(uv.y - 0.5));
-    float flash = (1.0 - smoothstep(0.0, 0.5, abs(uPower - 0.3))) * 0.6 * step(uPower, 0.999);
-    color = color * inside * open + vec3(flash) * inside;
-
-    // glossy dark glass when off
-    vec3 glass = vec3(0.012, 0.013, 0.016) + vec3(0.03) * smoothstep(0.6, 0.0, length(uv - vec2(0.3, 0.75)));
-    gl_FragColor = vec4(max(color * uBrightness, glass * (1.0 - open)), 1.0);
+    // Unlit pixels show the dark glass.
+    gl_FragColor = vec4(max(color, vec3(0.012, 0.013, 0.016)) * vignette, 1.0);
     #include <colorspace_fragment>
   }
 `;
+
+const POWER_ON_SECONDS = 0.35;
+const POWER_OFF_SECONDS = 0.55;
+const GLOW_STRENGTH = 2.8;
 
 /** Shader material + 32x32 texture that mirrors `kernel.screen`. Call `update` every frame. */
 export function createScreen(kernel: Kernel) {
   const pixels = new Uint8Array(32 * 32 * 4);
   const texture = new THREE.DataTexture(pixels, 32, 32, THREE.RGBAFormat);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.needsUpdate = true;
@@ -61,32 +52,42 @@ export function createScreen(kernel: Kernel) {
   const material = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
-    uniforms: {
-      uScreen: { value: texture },
-      uTime: { value: 0 },
-      uPower: { value: 0 },
-      uBrightness: { value: 1.6 },
-    },
+    uniforms: { uScreen: { value: texture }, uBrightness: { value: 1.6 }, uLit: { value: 0 } },
     toneMapped: false,
   });
+  const glow = createGlowUniforms(texture);
 
+  // The kernel blanks its screen at power-off, so keep the last picture for the collapse.
+  const lastPicture = new Framebuffer();
+  const collapsing = new Framebuffer();
   let version = -1;
-  let power = 0;
+  let shutter = 1; // 0 = full picture, 1 = black
+  let drawnShutter = -1;
 
   return {
     material,
-    texture,
-    update(time: number, delta: number) {
-      if (kernel.version !== version) {
-        version = kernel.version;
-        kernel.screen.writeRGBA(pixels);
+    glow,
+    update(delta: number) {
+      const changed = kernel.version !== version;
+      version = kernel.version;
+      if (kernel.powered && changed) lastPicture.copyFrom(kernel.screen);
+
+      shutter = kernel.powered
+        ? Math.max(0, shutter - delta / POWER_ON_SECONDS)
+        : Math.min(1, shutter + delta / POWER_OFF_SECONDS);
+
+      if (changed || shutter !== drawnShutter) {
+        drawnShutter = shutter;
+        if (shutter === 0) {
+          lastPicture.writeRGBA(pixels);
+        } else {
+          crtPower(lastPicture, collapsing, shutter);
+          collapsing.writeRGBA(pixels);
+        }
         texture.needsUpdate = true;
       }
-      const target = kernel.powered ? 1 : 0;
-      // power on ~0.45s, off ~0.3s
-      power = target > power ? Math.min(1, power + delta / 0.45) : Math.max(0, power - delta / 0.3);
-      material.uniforms.uPower!.value = power;
-      material.uniforms.uTime!.value = time;
+      material.uniforms.uLit!.value = 1 - shutter;
+      glow.uGlowStrength.value = shutter < 1 ? GLOW_STRENGTH : 0;
     },
     dispose() {
       texture.dispose();

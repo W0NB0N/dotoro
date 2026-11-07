@@ -7,6 +7,7 @@ import {
   FONT_3X5,
   FONT_5X7,
   Framebuffer,
+  crtPower,
   frameAt,
   Gfx,
   hex,
@@ -273,5 +274,43 @@ describe('Kernel', () => {
     expect(() => kernel.register(testApp('a'))).toThrow();
     kernel.powerOn();
     expect(() => kernel.launch('nope')).toThrow();
+  });
+});
+
+describe('crtPower', () => {
+  const picture = () => {
+    const fb = new Framebuffer();
+    for (let i = 0; i < fb.pixels.length; i++) fb.pixels[i] = (i * 2654435761) & 0xffffff;
+    return fb;
+  };
+  const litRows = (fb: Framebuffer) => {
+    const rows = new Set<number>();
+    fb.pixels.forEach((c, i) => c !== 0 && rows.add(Math.floor(i / fb.width)));
+    return [...rows];
+  };
+
+  it('starts as the untouched picture and ends black', () => {
+    const from = picture();
+    const out = new Framebuffer();
+    crtPower(from, out, 0);
+    expect(out.equals(from)).toBe(true);
+    crtPower(from, out, 1);
+    expect(out.pixels.every((c) => c === 0)).toBe(true);
+  });
+
+  it('squashes to a line, then a dot', () => {
+    const from = picture();
+    const out = new Framebuffer();
+    crtPower(from, out, 0.4);
+    const squashed = litRows(out).length;
+    expect(squashed).toBeGreaterThan(1);
+    expect(squashed).toBeLessThan(32);
+
+    crtPower(from, out, 0.6);
+    expect(litRows(out)).toEqual([16]);
+    expect(out.get(16, 16)).toBe(0xffffff);
+
+    crtPower(from, out, 0.9);
+    expect(out.pixels.filter((c) => c !== 0).length).toBe(2);
   });
 });

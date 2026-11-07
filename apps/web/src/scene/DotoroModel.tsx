@@ -1,9 +1,10 @@
 import type { Button } from '@dotoro/kernel';
 import { useGLTF } from '@react-three/drei';
 import { type ThreeEvent, useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
-import type * as THREE from 'three';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import * as THREE from 'three';
 import { host } from '../host/host';
+import { createGlowFloorMaterial, withScreenGlow } from './screenGlow';
 import { createScreen } from './screenMaterial';
 
 const MODEL_URL = '/models/dotoro.glb';
@@ -22,16 +23,81 @@ const KEYS: Record<string, Button> = {
 const PRESS_DEPTH = 0.045;
 const SPRING = 22;
 
+const FLOOR_SIZE = 10;
+
 type Nodes = Record<string, THREE.Mesh>;
 
-export function DotoroModel() {
+/** Where the screen is in the world, for the glow and the zoom camera. */
+export interface ScreenPose {
+  center: THREE.Vector3;
+  /** Half-extent vectors along texture u and v. */
+  u: THREE.Vector3;
+  v: THREE.Vector3;
+  normal: THREE.Vector3;
+}
+
+/** The curved screen's corners, by uv, as a flat rectangle in world space. */
+function measureScreen(mesh: THREE.Mesh): ScreenPose {
+  const position = mesh.geometry.attributes.position!;
+  const uv = mesh.geometry.attributes.uv!;
+  const corner = (cu: number, cv: number) => {
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < uv.count; i++) {
+      const distance = Math.hypot(uv.getX(i) - cu, uv.getY(i) - cv);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i;
+      }
+    }
+    return new THREE.Vector3().fromBufferAttribute(position, best).applyMatrix4(mesh.matrixWorld);
+  };
+  const [a, b, c, d] = [corner(0, 0), corner(1, 0), corner(0, 1), corner(1, 1)];
+  const center = a.clone().add(b).add(c).add(d).multiplyScalar(0.25);
+  const u = b.clone().sub(a).add(d).sub(c).multiplyScalar(0.25);
+  const v = c.clone().sub(a).add(d).sub(b).multiplyScalar(0.25);
+  const normal = u.clone().cross(v).normalize();
+  if (normal.z < 0) normal.negate();
+  return { center, u, v, normal };
+}
+
+interface Props {
+  screenPose: React.RefObject<ScreenPose | null>;
+  onScreenDoubleClick: () => void;
+}
+
+export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
   const { nodes } = useGLTF(MODEL_URL) as unknown as { nodes: Nodes };
   const screen = useMemo(() => createScreen(host.kernel), []);
   const keyRefs = useRef<Partial<Record<string, THREE.Mesh>>>({});
   const offsets = useRef<Record<string, number>>({});
   const flicks = useRef<Record<string, number>>({});
 
+  const screenRef = useRef<THREE.Mesh>(null);
+
+  const lit = useMemo(() => {
+    const copies = new Map<THREE.Material, THREE.Material>();
+    return (source: THREE.Mesh['material']) => {
+      const material = source as THREE.Material;
+      if (!copies.has(material)) copies.set(material, withScreenGlow(material, screen.glow));
+      return copies.get(material)!;
+    };
+  }, [screen]);
+  const floorMaterial = useMemo(() => createGlowFloorMaterial(screen.glow), [screen]);
+
   useEffect(() => () => screen.dispose(), [screen]);
+
+  useLayoutEffect(() => {
+    const mesh = screenRef.current;
+    if (!mesh) return;
+    mesh.updateWorldMatrix(true, false);
+    const pose = measureScreen(mesh);
+    screenPose.current = pose;
+    screen.glow.uGlowCenter.value.copy(pose.center);
+    screen.glow.uGlowU.value.copy(pose.u);
+    screen.glow.uGlowV.value.copy(pose.v);
+    screen.glow.uGlowNormal.value.copy(pose.normal);
+  }, [screen, screenPose]);
 
   // A pointer released anywhere (e.g. after sliding off a key) lets go of on-screen keys.
   useEffect(() => {
@@ -56,7 +122,7 @@ export function DotoroModel() {
   );
 
   useFrame((state, delta) => {
-    screen.update(state.clock.elapsedTime, delta);
+    screen.update(delta);
     for (const [name, button] of Object.entries(KEYS)) {
       const mesh = keyRefs.current[name];
       const node = nodes[name];
@@ -96,7 +162,7 @@ export function DotoroModel() {
       {body && (
         <mesh
           geometry={body.geometry}
-          material={body.material}
+          material={lit(body.material)}
           position={body.position}
           rotation={body.rotation}
           scale={body.scale}
@@ -106,13 +172,28 @@ export function DotoroModel() {
       )}
       {screenNode && (
         <mesh
+          ref={screenRef}
           geometry={screenNode.geometry}
           material={screen.material}
           position={screenNode.position}
           rotation={screenNode.rotation}
           scale={screenNode.scale}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onScreenDoubleClick();
+          }}
         />
       )}
+      <mesh
+        material={floorMaterial}
+        position={[0, 0.02, 1]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={FLOOR_SIZE}
+        raycast={() => null}
+        renderOrder={1}
+      >
+        <planeGeometry />
+      </mesh>
       {Object.entries(KEYS).map(([name, button]) => {
         const node = nodes[name];
         if (!node) return null;
@@ -123,7 +204,7 @@ export function DotoroModel() {
               keyRefs.current[name] = m ?? undefined;
             }}
             geometry={node.geometry}
-            material={node.material}
+            material={lit(node.material)}
             position={node.position}
             rotation={node.rotation}
             scale={node.scale}
