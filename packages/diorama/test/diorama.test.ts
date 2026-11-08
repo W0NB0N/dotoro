@@ -82,6 +82,17 @@ describe('diorama', () => {
     }
   });
 
+  it('keeps the sill joined to the desk when the camera tilts', () => {
+    for (const py of [-16, -8, 0, 8, 16]) {
+      const { u32, w } = render(300, 0, py);
+      for (let y = 170; y < 172; y++) {
+        for (let x = 180; x < 330; x++) {
+          expect(luminance(u32[y * w + x]!)).toBeLessThan(30);
+        }
+      }
+    }
+  });
+
   it('shows the time it is given, and nothing else changes', () => {
     const at = (hours: number, minutes: number) => {
       const frame = new Frame(VIEW_W, VIEW_H);

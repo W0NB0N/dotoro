@@ -451,7 +451,8 @@ function bakeWindow(): Layer {
   // Sill.
   L.rect(-300, GLASS_BOTTOM, 1060, SILL_BOTTOM - GLASS_BOTTOM, 0x0c0912);
   L.rect(-300, GLASS_BOTTOM, 1060, 1, 0x2a2060);
-  L.rect(-300, SILL_BOTTOM - 1, 1060, 1, DARK);
+  // Runs on under the desk, so tilting the camera can't lift the sill off it and show the city.
+  L.rect(-300, SILL_BOTTOM - 1, 1060, 8, DARK);
   return L;
 }
 
