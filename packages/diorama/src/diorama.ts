@@ -1,5 +1,5 @@
 import { createBalcony } from './balcony';
-import { type Ctx, createCity, DEPTH, type DeskClock, shiftX } from './city';
+import { type Ctx, createCity, DEPTH, type DeskClock, shiftX, shiftY } from './city';
 import { bayer, Frame, LOOP_FRAMES } from './core';
 import { drawRain, type RainSheet } from './fx';
 import { drawGlass } from './glass';
@@ -99,7 +99,7 @@ export function createDiorama(): Diorama {
       drawRain(frame, RAIN_MID, t, slope, shiftX(ctx, DEPTH.air));
       balcony.draw(ctx);
       drawRain(frame, RAIN_NEAR, t, slope, shiftX(ctx, DEPTH.balcony));
-      drawGlass(frame, t);
+      drawGlass(frame, t, shiftY(ctx, DEPTH.glass));
       room.draw(ctx);
       quantize(frame, lut);
     },

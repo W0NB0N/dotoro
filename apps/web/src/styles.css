@@ -343,6 +343,9 @@ a {
 /* Eleven chunky segments, lit or dark, like the bar on a cassette deck. */
 .volume {
   position: relative;
+  /* The drag is ours: don't let a touch scroll or zoom the page instead. */
+  touch-action: none;
+  user-select: none;
   display: flex;
   align-items: center;
   gap: 3px;

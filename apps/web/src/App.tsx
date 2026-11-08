@@ -19,6 +19,14 @@ export function App() {
   const { powered, theme, muted } = useHost();
   const [helpOpen, setHelpOpen] = useState(false);
   const [lowPower, setLowPower] = useState(() => host.store.get<boolean>(LOW_POWER_KEY) ?? false);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Listened for, not assumed: Esc leaves fullscreen without going through the button.
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement !== null);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
 
   useEffect(() => {
     host.start();
@@ -62,8 +70,13 @@ export function App() {
           <header className="top-ui">
             <h1 className="wordmark">dotoro</h1>
             <nav className="icons" aria-label="Settings">
-              <button className="icon hide-small-screen" data-tip="Fullscreen" aria-label="Fullscreen" onClick={toggleFullscreen}>
-                <PixelIcon rows={ICON.fullscreen} />
+              <button
+                className="icon hide-small-screen"
+                data-tip={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                onClick={toggleFullscreen}
+              >
+                <PixelIcon rows={fullscreen ? ICON.fullscreenExit : ICON.fullscreen} />
               </button>
               <button
                 className="icon"

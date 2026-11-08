@@ -123,6 +123,8 @@ const wanted: Paint = (b, s) => {
 const SPRUNK_SECONDS = 20;
 const PIN_PULL = 2.2;
 const CAP_POP = 4;
+/** Where the copy starts: clear of the grenade, its spray and the stream, which all need the left. */
+const SPRUNK_TEXT_X = 66;
 
 /** A pineapple grenade in Sprunk green, its segments catching a moving highlight. */
 function drawGrenade(b: Sprite, cx: number, cy: number, s: number) {
@@ -209,7 +211,7 @@ function drawPour(b: Sprite, mouthX: number, mouthY: number, tip: number, s: num
   }
   // The pool.
   for (let y = 0; y < level; y++) {
-    for (let x = 0; x < 44; x++) {
+    for (let x = 0; x < SPRUNK_TEXT_X - 3; x++) {
       const surface = y === level - 1;
       const c = surface ? (hash(x, Math.floor(s * 8)) > 0.45 ? 0xd4fcff : 0x6aa83a) : y === level - 2 ? 0x2a7a4a : 0x14402c;
       b.set(x, b.h - 1 - y, c);
@@ -218,7 +220,7 @@ function drawPour(b: Sprite, mouthX: number, mouthY: number, tip: number, s: num
   // Bubbles rising through the pool and popping on top.
   for (let i = 0; i < 12; i++) {
     const u = fract(s * 1.3 + hash(i, 31));
-    const x = Math.round(hash(i, 32) * 42);
+    const x = Math.round(hash(i, 32) * (SPRUNK_TEXT_X - 5));
     const y = b.h - 1 - Math.round(u * level);
     if (u < 0.85) b.set(x, y, 0xb8ff80);
     else {
@@ -251,7 +253,7 @@ const sprunk: Paint = (b, s) => {
   // The grenade drops in and settles.
   const drop = s < 1 ? Math.round((1 - s) ** 2 * -40) : s < 1.4 ? Math.round(Math.sin((s - 1) * 8) * -2) : 0;
   const shake = s > PIN_PULL && s < CAP_POP ? Math.round(Math.sin(s * 40)) : 0;
-  const cx = 25 + shake;
+  const cx = 40 + shake;
   const cy = 25 + drop;
   // Drawn upright into its own canvas, then tipped over to pour.
   grenadeCanvas.px.fill(0);
@@ -265,10 +267,15 @@ const sprunk: Paint = (b, s) => {
   drawPour(b, mouthX, mouthY, tip, s);
 
   const title = s < 1.5 ? 'SPRUNK'.slice(0, Math.floor(s * 4)) : 'SPRUNK';
-  text(b, title, 49, 4, 0x0a4020, 2, 1);
-  text(b, title, 48, 3, 0xffffff, 2, 1);
+  text(b, title, SPRUNK_TEXT_X + 1, 4, 0x0a4020, 2, 1);
+  text(b, title, SPRUNK_TEXT_X, 3, 0xffffff, 2, 1);
+  // The copy types itself out line by line; three short lines sit a little higher than two.
+  const copy = (lines: readonly string[], local: number) => {
+    const top = lines.length > 2 ? 20 : 22;
+    lines.forEach((line, i) => text(b, typed(line, local, i * 0.7, 14), SPRUNK_TEXT_X, top + i * 9, i === 0 ? 0xb8ff80 : 0xffffff));
+  };
   if (s < CAP_POP) {
-    text(b, typed('PULL THE PIN.', s, 1.5, 12), 48, 22, 0xb8ff80);
+    copy(['PULL THE', 'PIN.'], s - 1.5);
     return;
   }
   const beats = [
@@ -281,8 +288,7 @@ const sprunk: Paint = (b, s) => {
     const index = beat(s - CAP_POP, SPRUNK_SECONDS - CAP_POP - END_CARD, beats.length);
     const local = s - CAP_POP - index * span;
     const lines = beats[index]!;
-    text(b, typed(lines[0]!, local, 0, 14), 48, 22, 0xb8ff80);
-    text(b, typed(lines[1]!, local, 0.7, 14), 48, 31, 0xffffff);
+    copy(lines, local);
     if (index === 0) {
       // A periodic-table chip for mercury, pulsing while it's the pitch.
       const pulse = fract(s * 2) < 0.5;
@@ -293,8 +299,7 @@ const sprunk: Paint = (b, s) => {
     return;
   }
   const local = s - (SPRUNK_SECONDS - END_CARD);
-  text(b, typed('EXPLODE OUT', local, 0, 14), 48, 22, 0xb8ff80);
-  text(b, typed('OF EXISTENCE.', local, 0.9, 14), 48, 31, 0xffffff);
+  copy(['EXPLODE', 'OUT OF', 'EXISTENCE.'], local);
 };
 
 // ---------------------------------------------------------------------------------------------

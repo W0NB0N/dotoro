@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { type PointerEvent, useEffect, useSyncExternalStore } from 'react';
 import { host } from '../host/host';
 import { LofiPlayer } from '../host/lofi';
 import { ICON, PixelIcon } from './pixel';
@@ -42,6 +42,11 @@ export function MusicPlayer() {
 
   const level = Math.round(volume * (VOLUME_STEPS - 1));
   const setLevel = (n: number) => music.setVolume(Math.max(0, Math.min(VOLUME_STEPS - 1, n)) / (VOLUME_STEPS - 1));
+  /** The segment under the pointer. Past either end of the bar counts as that end. */
+  const setLevelFromPointer = (e: PointerEvent<HTMLDivElement>) => {
+    const { left, width } = e.currentTarget.getBoundingClientRect();
+    setLevel(Math.floor(((e.clientX - left) / width) * VOLUME_STEPS));
+  };
 
   return (
     <section className="player" aria-label="Music">
@@ -82,9 +87,17 @@ export function MusicPlayer() {
             e.stopPropagation();
           }}
           onWheel={(e) => setLevel(level + (e.deltaY < 0 ? 1 : -1))}
+          onPointerDown={(e) => {
+            // Captured, so a drag keeps working when the pointer strays off the bar.
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setLevelFromPointer(e);
+          }}
+          onPointerMove={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) setLevelFromPointer(e);
+          }}
         >
           {Array.from({ length: VOLUME_STEPS }, (_, i) => (
-            <span key={i} className={i <= level && level > 0 ? 'on' : 'off'} onClick={() => setLevel(i === 0 && level === 0 ? 1 : i)} />
+            <span key={i} className={i <= level && level > 0 ? 'on' : 'off'} />
           ))}
         </div>
       </div>
