@@ -1,4 +1,15 @@
 import * as THREE from 'three';
+import {
+  grungeChunk,
+  grungeColor,
+  grungeEmissive,
+  grungeRoughness,
+  grungeUniforms,
+  grungeVertex,
+  grungeVertexChunk,
+  type KeyIcon,
+  type Surface,
+} from './grunge';
 
 /**
  * The screen as a real light source. There is no averaged screen color: surfaces integrate the
@@ -68,10 +79,28 @@ const glowChunk = /* glsl */ `
 `;
 
 /** A copy of `source` that is lit by the screen. */
-export function withScreenGlow(source: THREE.Material, uniforms: GlowUniforms): THREE.Material {
+export function withScreenGlow(
+  source: THREE.Material,
+  uniforms: GlowUniforms,
+  surface?: Surface,
+  icon?: KeyIcon,
+): THREE.Material {
   const material = source.clone();
+  const weathering = surface ? grungeUniforms(surface, icon) : null;
+  material.customProgramCacheKey = () => (weathering ? 'glow+grunge' : 'glow');
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
+    if (weathering) {
+      Object.assign(shader.uniforms, weathering);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>\n${grungeChunk}`)
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${grungeColor}`)
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${grungeRoughness}`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${grungeEmissive}`);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>\n${grungeVertexChunk}`)
+        .replace('#include <project_vertex>', `#include <project_vertex>\n${grungeVertex}`);
+    }
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGlowWorld;')
       .replace(

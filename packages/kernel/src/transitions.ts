@@ -1,7 +1,7 @@
 import type { Framebuffer } from './framebuffer';
 import { mix } from './color';
 
-export type TransitionKind = 'cut' | 'dissolve' | 'wipe-left' | 'wipe-down';
+export type TransitionKind = 'cut' | 'dissolve' | 'wipe-left' | 'wipe-down' | 'glitch';
 
 /** Stable pseudo-random threshold in [0, 1) for pixel `i`. */
 function threshold(i: number): number {
@@ -18,13 +18,17 @@ function threshold(i: number): number {
  */
 export function applyTransition(kind: TransitionKind, from: Framebuffer, target: Framebuffer, progress: number): void {
   if (kind === 'cut' || progress >= 1) return;
+  if (kind === 'glitch') {
+    glitchTransition(from, target, progress);
+    return;
+  }
   const { width, height } = target;
   const src = from.pixels;
   const dst = target.pixels;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = y * width + x;
-      let showNew: boolean;
+      let showNew = true;
       switch (kind) {
         case 'dissolve':
           showNew = threshold(i) < progress;
@@ -37,6 +41,30 @@ export function applyTransition(kind: TransitionKind, from: Framebuffer, target:
           break;
       }
       if (!showNew) dst[i] = src[i]!;
+    }
+  }
+}
+
+/**
+ * The new screen arrives in torn two-row bands: each band flips at its own moment, and while it is
+ * flipping it slides sideways with a cyan or magenta cast.
+ */
+function glitchTransition(from: Framebuffer, target: Framebuffer, progress: number): void {
+  const { width, height } = target;
+  const next = target.pixels.slice();
+  const old = from.pixels;
+  const dst = target.pixels;
+  for (let y = 0; y < height; y++) {
+    const band = y >> 1;
+    const flipAt = threshold(band * 31 + 7) * 0.85 + 0.075;
+    const showNew = progress >= flipAt;
+    const tearing = Math.abs(progress - flipAt) < 0.12;
+    const shift = tearing ? ((band % 3) - 1) * (2 + (band & 1) * 2) : 0;
+    const cast = band & 1 ? 0x00f0ff : 0xff0099;
+    for (let x = 0; x < width; x++) {
+      const sx = (((x - shift) % width) + width) % width;
+      const c = (showNew ? next : old)[y * width + sx]!;
+      dst[y * width + x] = shift !== 0 ? mix(c, cast, 0.35) : c;
     }
   }
 }

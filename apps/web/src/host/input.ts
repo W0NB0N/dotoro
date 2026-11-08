@@ -16,7 +16,6 @@ const KEYMAP: Record<string, Button> = {
   KeyM: 'menu',
   Escape: 'menu',
   KeyB: 'power',
-  KeyP: 'power',
 };
 
 const REPEAT_DELAY_MS = 400;
@@ -113,7 +112,7 @@ export const KEY_HELP: { keys: string; action: string }[] = [
   { keys: 'Arrows / WASD', action: 'Navigate' },
   { keys: 'Enter / Space', action: 'Select · start · pause' },
   { keys: 'M / Esc', action: 'Menu' },
-  { keys: 'B / P', action: 'Power on / off' },
+  { keys: 'B', action: 'Power on / off' },
   { keys: 'Click 3D keys', action: 'Press (hold to repeat)' },
   { keys: 'Double-click screen', action: 'Zoom in / out' },
   { keys: 'Drag', action: 'Look around' },

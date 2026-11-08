@@ -19,7 +19,9 @@ export interface KernelOptions {
   seed?: number;
   bootApp?: string;
   homeApp?: string;
-  /** Transition used when switching apps. Default 'dissolve'. */
+  /** Theme to use until the user picks one. Defaults to DEFAULT_THEME_ID. */
+  defaultTheme?: string;
+  /** Transition used when switching apps. Default: the theme's own, else 'dissolve'. */
   transition?: TransitionKind;
   transitionMs?: number;
 }
@@ -68,7 +70,7 @@ export class Kernel {
   private readonly seed: number;
   private readonly bootApp: string;
   private readonly homeApp: string;
-  private readonly transitionKind: TransitionKind;
+  private readonly transitionKind: TransitionKind | undefined;
   private readonly transitionMs: number;
 
   private readonly defs = new Map<string, AppDefinition>();
@@ -90,13 +92,13 @@ export class Kernel {
     this.seed = options.seed ?? Math.floor(this.clock.now()) >>> 0;
     this.bootApp = options.bootApp ?? 'boot';
     this.homeApp = options.homeApp ?? 'menu';
-    this.transitionKind = options.transition ?? 'dissolve';
+    this.transitionKind = options.transition;
     this.transitionMs = options.transitionMs ?? 220;
 
     const savedTheme = this.store.get<string>(THEME_KEY);
     this.currentTheme =
       this.themeList.find((t) => t.id === savedTheme) ??
-      this.themeList.find((t) => t.id === DEFAULT_THEME_ID) ??
+      this.themeList.find((t) => t.id === (options.defaultTheme ?? DEFAULT_THEME_ID)) ??
       this.themeList[0]!;
     this.screen.fill(BLACK);
     this.back.fill(BLACK);
@@ -174,10 +176,12 @@ export class Kernel {
     if (id === this.activeId) return;
     this.ensureInstances();
 
-    const animate = (options.transition ?? true) && this.activeId !== null && this.transitionKind !== 'cut';
+    // An explicit host choice wins; otherwise the theme picks.
+    const kind = this.transitionKind ?? this.currentTheme.style?.transition ?? 'dissolve';
+    const animate = (options.transition ?? true) && this.activeId !== null && kind !== 'cut';
     this.exitActive();
     this.transition = animate
-      ? { kind: this.transitionKind, from: this.screen.clone(), start: this.clock.now(), duration: this.transitionMs }
+      ? { kind, from: this.screen.clone(), start: this.clock.now(), duration: this.transitionMs }
       : null;
     this.activeId = id;
     this.running.get(id)!.app.onEnter?.();

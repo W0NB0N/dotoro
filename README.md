@@ -10,6 +10,8 @@ A small optional backend (later) handles only high scores and multiplayer.
 packages/kernel   Pure TypeScript OS (no DOM): framebuffer, Gfx, fonts, sprites, input,
                   fixed-step kernel, themes, storage + audio interfaces, transitions, seeded RNG
 packages/apps     Built-in apps (boot, menu, pomodoro, snake, themes, gallery) + generated assets
+packages/diorama  The animated pixel-art window behind Dotoro: a software renderer whose frames
+                  are a pure function of (frame, parallax), run in a Web Worker by apps/web
 apps/web          Vite + React + R3F shell: 3D model, screen shader, input bus, Web Audio, PWA
 assets-src/       Source art (GIF/PNG) + manifest.json -> converted by `pnpm assets`
 tools/assets      Asset converter (sharp): images/GIFs -> indexed-palette sprite JSON

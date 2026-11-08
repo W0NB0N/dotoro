@@ -52,6 +52,29 @@ export const DEFAULT_VFD: VfdPalette = definePalette({
   headerUnlit: '#202021',
 });
 
+/** Cyan tubes behind smoked violet glass, pink for the indicator, colon and session header. */
+export const NEON_VFD: VfdPalette = definePalette({
+  off: '#000000',
+  chrome: '#1a0a2e',
+  chromeDim: '#120724',
+  shadow: '#07050e',
+  unlitCore: '#1c1a2e',
+  unlitGlow: '#100e1c',
+  litCore: '#6cf0f8',
+  litGlow: '#1368a0',
+  colonLit: '#ff3fa8',
+  indicatorLit: '#ff3fa8',
+  indicatorGlow: '#701a70',
+  progressFill: '#ff3fa8',
+  progressUnlit: '#221a30',
+  headerLit: '#ff3fa8',
+  headerDim: '#701a70',
+  headerUnlit: '#1a1424',
+});
+
+/** Timer-face palettes a theme can ask for by name (`style.vfd`). */
+export const VFD_PALETTES: Readonly<Record<string, VfdPalette>> = { neon: NEON_VFD };
+
 /** Roles that body artwork pixels may be classified as. */
 export const BODY_ROLES: readonly VfdRole[] = [
   'off', 'chrome', 'chromeDim', 'shadow', 'unlitCore', 'unlitGlow',

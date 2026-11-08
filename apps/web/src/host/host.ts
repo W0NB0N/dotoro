@@ -20,7 +20,8 @@ export class Host {
   readonly store = createLocalStore();
   readonly audio = new WebAudioHost();
   readonly input = new InputBus();
-  readonly kernel = new Kernel({ store: this.store, audio: this.audio });
+  /** Starts in the cyberpunk theme, to match the city outside; a theme the user picked still wins. */
+  readonly kernel = new Kernel({ store: this.store, audio: this.audio, defaultTheme: 'cyberpunk' });
 
   private snapshot: HostSnapshot;
   private readonly listeners = new Set<() => void>();

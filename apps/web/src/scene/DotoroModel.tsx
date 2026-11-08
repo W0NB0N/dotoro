@@ -4,6 +4,7 @@ import { type ThreeEvent, useFrame } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { host } from '../host/host';
+import { ICONS, KEYS as KEY_SURFACE, type KeyIcon, POWER, SHELL, type Surface } from './grunge';
 import { createGlowFloorMaterial, withScreenGlow } from './screenGlow';
 import { createScreen } from './screenMaterial';
 
@@ -21,6 +22,36 @@ const KEYS: Record<string, Button> = {
 };
 
 const PRESS_DEPTH = 0.045;
+
+/** Each key's icon: what it shows and its color. Enter's sits in the part of its L in front. */
+const KEY_ICONS: Record<string, { rows: readonly number[]; color: string; center?: readonly [number, number] }> = {
+  'key-up': { rows: ICONS.up, color: '#2fe0f0' },
+  'key-down': { rows: ICONS.down, color: '#2fe0f0' },
+  'key-left': { rows: ICONS.left, color: '#2fe0f0' },
+  'key-right': { rows: ICONS.right, color: '#2fe0f0' },
+  'key-enter': { rows: ICONS.enter, color: '#55fe9a', center: [0.72, 0.68] },
+  'key-menu': { rows: ICONS.menu, color: '#ffb030' },
+  'key-boot': { rows: ICONS.power, color: '#ff3fa8' },
+};
+/** Icon edge length on the key, in model units. */
+const ICON_SIZE = 0.12;
+
+function keyIcon(name: string, mesh: THREE.Mesh): KeyIcon | undefined {
+  const spec = KEY_ICONS[name];
+  if (!spec) return undefined;
+  const geometry = mesh.geometry;
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox!;
+  const size = box.getSize(new THREE.Vector3());
+  const [cu, cv] = spec.center ?? [0.5, 0.5];
+  return {
+    rows: spec.rows,
+    color: spec.color,
+    boxMin: box.min.clone(),
+    boxSize: size,
+    rect: [cu, cv, ICON_SIZE / (size.x * mesh.scale.x), ICON_SIZE / (size.z * mesh.scale.z)],
+  };
+}
 const SPRING = 22;
 
 const FLOOR_SIZE = 10;
@@ -76,11 +107,17 @@ export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
   const screenRef = useRef<THREE.Mesh>(null);
 
   const lit = useMemo(() => {
-    const copies = new Map<THREE.Material, THREE.Material>();
-    return (source: THREE.Mesh['material']) => {
+    const copies = new Map<string, THREE.Material>();
+    // Keys each get their own copy for their icon; everything else shares by material and surface.
+    return (source: THREE.Mesh['material'], surface: Surface, key?: { name: string; mesh: THREE.Mesh }) => {
       const material = source as THREE.Material;
-      if (!copies.has(material)) copies.set(material, withScreenGlow(material, screen.glow));
-      return copies.get(material)!;
+      const id = `${material.uuid}:${surface === SHELL ? 'shell' : surface === POWER ? 'power' : 'key'}:${key?.name ?? ''}`;
+      let copy = copies.get(id);
+      if (!copy) {
+        copy = withScreenGlow(material, screen.glow, surface, key ? keyIcon(key.name, key.mesh) : undefined);
+        copies.set(id, copy);
+      }
+      return copy;
     };
   }, [screen]);
   const floorMaterial = useMemo(() => createGlowFloorMaterial(screen.glow), [screen]);
@@ -162,7 +199,7 @@ export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
       {body && (
         <mesh
           geometry={body.geometry}
-          material={lit(body.material)}
+          material={lit(body.material, SHELL)}
           position={body.position}
           rotation={body.rotation}
           scale={body.scale}
@@ -204,7 +241,7 @@ export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
               keyRefs.current[name] = m ?? undefined;
             }}
             geometry={node.geometry}
-            material={lit(node.material)}
+            material={lit(node.material, button === 'power' ? POWER : KEY_SURFACE, { name, mesh: node })}
             position={node.position}
             rotation={node.rotation}
             scale={node.scale}
