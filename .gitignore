@@ -5,3 +5,7 @@ coverage/
 .DS_Store
 # rendered debug frames from tests
 packages/*/test/__out__/
+
+# large local media, kept out of the repo
+gifs/**/*.mp4
+/Cyberpunk 2077 Lo-Fi Beats Playlist Night City Chillhop Radio.mp3

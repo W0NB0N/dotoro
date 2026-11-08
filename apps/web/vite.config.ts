@@ -10,7 +10,9 @@ export default defineConfig({
       includeAssets: ['icon-192.png', 'icon-512.png'],
       workbox: {
         // The whole OS runs client-side, so precache everything for offline use.
-        globPatterns: ['**/*.{js,css,html,png,svg,glb,mp3,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,glb,mp3,webmanifest,woff2}'],
+        // ...except the music: about 31 MB of songs that stream when played.
+        globIgnores: ['**/music/**'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
       manifest: {

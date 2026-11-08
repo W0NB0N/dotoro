@@ -1,8 +1,27 @@
-import { type AppDefinition, DIRECTIONS, FONT_3X5, hex, isDirection, measureText } from '@dotoro/kernel';
+import { type AppDefinition, type Color, DIRECTIONS, FONT_3X5, hex, isDirection, measureText, mix } from '@dotoro/kernel';
 
-// Snake keeps its own "cartridge" palette (pea-soup LCD) regardless of theme.
-const BG = hex('#9dbf4e');
-const FG = hex('#322f3b');
+/**
+ * Snake keeps its own "cartridge" palette rather than the theme's: the pea-soup LCD, unless the
+ * theme asks for another cartridge by name (`style.cartridge`).
+ */
+interface Cartridge {
+  bg: Color;
+  fg: Color;
+  apple: Color;
+  frame: Color;
+  /** Every other row this color, for a CRT feel; the background when there are none. */
+  scan: Color;
+}
+
+const LCD: Cartridge = { bg: hex('#9dbf4e'), fg: hex('#322f3b'), apple: hex('#322f3b'), frame: hex('#322f3b'), scan: hex('#9dbf4e') };
+const NEON: Cartridge = {
+  bg: hex('#0a0818'),
+  fg: hex('#2fe0f0'),
+  apple: hex('#ff3fa8'),
+  frame: hex('#3a2a88'),
+  scan: mix(hex('#0a0818'), hex('#3a2a88'), 0.22),
+};
+const CARTRIDGES: Readonly<Record<string, Cartridge>> = { neon: NEON };
 
 // Playfield inside a 30x26 border (x 1..30, y 5..30); score sits above it in rows 0..4.
 const MIN_X = 2;
@@ -137,12 +156,14 @@ export const snakeApp: AppDefinition = {
 
       render(g) {
         const now = ctx.now();
+        const { bg: BG, fg: FG, apple: APPLE, frame: FRAME, scan } = CARTRIDGES[ctx.theme.style?.cartridge ?? ''] ?? LCD;
         g.clear(BG);
-        g.strokeRect(1, 5, 30, 26, FG);
+        if (scan !== BG) for (let y = 1; y < g.height; y += 2) g.fillRect(0, y, g.width, 1, scan);
+        g.strokeRect(1, 5, 30, 26, FRAME);
 
         if (state === 'alive') {
           g.textCentered(String(score), 0, FG, FONT_3X5);
-          for (const [x, y] of apples) g.pixel(x, y, FG);
+          for (const [x, y] of apples) g.pixel(x, y, APPLE);
           for (const [x, y] of snake) g.pixel(x, y, FG);
           return;
         }

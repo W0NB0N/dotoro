@@ -10,6 +10,7 @@ import {
   PROGRESS_PIXELS,
   SEGMENTS,
   SLOT_COORDS,
+  VFD_PALETTES,
   type VfdPalette,
 } from './vfd';
 
@@ -62,7 +63,8 @@ export const pomodoroApp: AppDefinition = {
       startRemaining: 0,
       ...ctx.savedState<PomodoroState>(),
     };
-    const vfd: VfdPalette = DEFAULT_VFD; // TODO(theme packs): read from the active theme
+    /** The timer face takes its palette from the theme, when the theme names one. */
+    const vfdNow = (): VfdPalette => VFD_PALETTES[ctx.theme.style?.vfd ?? ''] ?? DEFAULT_VFD;
 
     const remainingNow = () =>
       s.state === 'running' && s.startedAt !== null
@@ -147,6 +149,7 @@ export const pomodoroApp: AppDefinition = {
       },
 
       render(g: Gfx) {
+        const vfd = vfdNow();
         const now = ctx.now();
         const blinkOn = Math.floor(now / 500) % 2 === 0;
         const remaining = remainingNow();

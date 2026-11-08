@@ -1,5 +1,6 @@
-import { type AppDefinition, FONT_3X5, FONT_5X7, frameAt, type Gfx, type Color } from '@dotoro/kernel';
+import { type AppDefinition, FONT_3X5, FONT_5X7, frameAt, type Gfx, type Color, measureText } from '@dotoro/kernel';
 import { GALLERY, SPRITES } from './assets';
+import { fringeFor, glitch, hasHud, hudFrame, scanlines } from './hud';
 
 /** Pagination dots centred at the bottom of the screen. */
 function drawDots(g: Gfx, count: number, selected: number, w: number, on: Color, off: Color): void {
@@ -65,14 +66,37 @@ export const menuApp: AppDefinition = {
         if (apps.length === 0) return;
         index = Math.min(index, apps.length - 1);
         const app = apps[index]!;
-        const palette = ctx.theme.screen;
+        const theme = ctx.theme;
+        const palette = theme.screen;
         const color = palette[app.menuColor ?? 'accent'];
-        if (app.menuLines) {
-          app.menuLines.forEach((line, i) => g.textCentered(line, 7 + i * 8, color, FONT_5X7));
-        } else {
-          g.marquee(app.title.toUpperCase(), 0, 12, g.width, color, FONT_5X7, ctx.now() - selectedAt);
+        const now = ctx.now();
+        if (!hasHud(theme)) {
+          if (app.menuLines) {
+            app.menuLines.forEach((line, i) => g.textCentered(line, 7 + i * 8, color, FONT_5X7));
+          } else {
+            g.marquee(app.title.toUpperCase(), 0, 12, g.width, color, FONT_5X7, now - selectedAt);
+          }
+          drawDots(g, apps.length, index, 3, palette.foreground, palette.secondary);
+          return;
         }
-        drawDots(g, apps.length, index, 3, palette.foreground, palette.secondary);
+        // HUD: scanlines behind, the title with a chromatic fringe, brackets on top, and a tear
+        // through the screen whenever the selection moves.
+        scanlines(g, theme);
+        const fringe = fringeFor(theme, color);
+        if (app.menuLines) {
+          app.menuLines.forEach((line, i) => {
+            const x = Math.floor((g.width - measureText(line, FONT_5X7)) / 2);
+            g.text(line, x - 1, 7 + i * 8, fringe, FONT_5X7);
+            g.text(line, x, 7 + i * 8, color, FONT_5X7);
+          });
+        } else {
+          const title = app.title.toUpperCase();
+          g.marquee(title, -1, 12, g.width, fringe, FONT_5X7, now - selectedAt);
+          g.marquee(title, 0, 12, g.width, color, FONT_5X7, now - selectedAt);
+        }
+        drawDots(g, apps.length, index, 3, palette.accent, palette.secondary);
+        hudFrame(g, theme, now);
+        glitch(g, theme, now, selectedAt, index);
       },
       save: () => ({ index }),
     };
@@ -114,9 +138,22 @@ export const themesApp: AppDefinition = {
         const preview = list[index];
         if (!preview) return;
         const p = preview.screen;
+        const now = ctx.now();
         g.clear(p.background);
+        if (hasHud(preview)) {
+          // Previewed in its own dress, not just its own colors.
+          scanlines(g, preview);
+          g.textCentered('THEME', 4, p.foreground, FONT_3X5);
+          const name = preview.name.toUpperCase();
+          g.marquee(name, -1, 13, g.width, fringeFor(preview, p.accent), FONT_5X7, now - selectedAt);
+          g.marquee(name, 0, 13, g.width, p.accent, FONT_5X7, now - selectedAt);
+          drawDots(g, list.length, index, 2, p.accent, p.secondary);
+          hudFrame(g, preview, now);
+          glitch(g, preview, now, selectedAt, index);
+          return;
+        }
         g.textCentered('THEME', 4, p.secondary, FONT_3X5);
-        g.marquee(preview.name.toUpperCase(), 0, 13, g.width, p.accent, FONT_5X7, ctx.now() - selectedAt);
+        g.marquee(preview.name.toUpperCase(), 0, 13, g.width, p.accent, FONT_5X7, now - selectedAt);
         drawDots(g, list.length, index, 2, p.foreground, p.secondary);
       },
     };

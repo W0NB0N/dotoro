@@ -1,4 +1,5 @@
 import { type Color, hex } from './color';
+import type { TransitionKind } from './transitions';
 
 /** Semantic colors apps draw with. Apps never hard-code hex for themed UI. */
 export interface ScreenPalette {
@@ -22,11 +23,27 @@ export interface AmbientStyle {
   scene: string;
 }
 
+/**
+ * How a theme dresses the screen beyond its colors. Every field is optional: a theme without a
+ * style renders exactly as the prototype did.
+ */
+export interface ThemeStyle {
+  /** Scanlines, corner brackets, chromatic text and glitches on the system screens. */
+  hud?: boolean;
+  /** Transition between apps, unless the host chose one explicitly. */
+  transition?: TransitionKind;
+  /** Which timer-face palette apps should use (apps define the palettes). */
+  vfd?: string;
+  /** Which game-cartridge palette apps should use. */
+  cartridge?: string;
+}
+
 export interface Theme {
   id: string;
   name: string;
   screen: ScreenPalette;
   ambient: AmbientStyle;
+  style?: ThemeStyle;
 }
 
 interface ThemeSource {
@@ -34,21 +51,24 @@ interface ThemeSource {
   name: string;
   screen: Record<PaletteRole, string>;
   ambient: AmbientStyle;
+  style?: ThemeStyle;
 }
 
 function defineTheme(src: ThemeSource): Theme {
   const screen = {} as ScreenPalette;
   for (const role of Object.keys(src.screen) as PaletteRole[]) screen[role] = hex(src.screen[role]);
-  return { id: src.id, name: src.name, screen, ambient: src.ambient };
+  return { id: src.id, name: src.name, screen, ambient: src.ambient, ...(src.style ? { style: src.style } : {}) };
 }
 
 // Ported 1:1 from the prototype's core/themes.py (same order: the Themes app lists them in this order).
 export const THEMES: readonly Theme[] = [
+  // Matched to the rainy neon city behind the device: cyan tubes and hot pink on near-black violet.
   defineTheme({
     id: 'cyberpunk',
     name: 'Cyberpunk',
-    screen: { background: '#120458', foreground: '#00f0ff', accent: '#ff0099', secondary: '#7000ff', success: '#00ff9f', warning: '#ffbf00', danger: '#ff0000' },
-    ambient: { background: '#0a0220', accent: '#ff0099', screenGlow: '#ff0099', scene: 'cyberpunk_city' },
+    screen: { background: '#0a0818', foreground: '#2fe0f0', accent: '#ff3fa8', secondary: '#3a2a88', success: '#55fe9a', warning: '#ffb030', danger: '#ff3050' },
+    ambient: { background: '#0a0818', accent: '#ff3fa8', screenGlow: '#2fe0f0', scene: 'cyberpunk_city' },
+    style: { hud: true, transition: 'glitch', vfd: 'neon', cartridge: 'neon' },
   }),
   defineTheme({
     id: 'forest',

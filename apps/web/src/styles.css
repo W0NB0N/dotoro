@@ -1,13 +1,40 @@
+/*
+ * The interface reads like a lofi radio on an old CRT: VT323 in near-white with a phosphor glow,
+ * red for the things you can act on, pixel icons, scanlines with an RGB mask, and a vignette.
+ */
 :root {
-  --ambient-bg: #181825;
-  --ambient-accent: #89b4fa;
-  --screen-glow: #89b4fa;
-  --text: #e8eaf4;
-  --text-dim: #9aa0b8;
-  --panel: rgb(16 16 26 / 0.78);
-  --border: rgb(255 255 255 / 0.1);
+  --ambient-bg: #0a0818;
+  --ambient-accent: #ff3fa8;
+  --screen-glow: #2fe0f0;
+  --text: rgb(235 235 235);
+  --font: 'VT323', ui-monospace, monospace;
+  /* prettier-ignore */
+  --green-glow:
+    0 0 2px hsl(120 100% 80%),
+    0 0 15px green,
+    0 0 60px green;
+  /* prettier-ignore */
+  --green-glow-small:
+    0 0 1px hsl(120 100% 80%),
+    0 0 2px hsl(120 100% 80%),
+    0 0 10px green;
+  /* prettier-ignore */
+  --dim-green-glow:
+    0 0 1px hsl(120 100% 80%),
+    0 0 10px green;
+  /* prettier-ignore */
+  --red-glow:
+    0 0 1px hsl(0 100% 80%),
+    0 0 2px hsl(0 100% 80%),
+    0 0 15px hsl(0 100% 50%),
+    0 0 60px red;
+  /* prettier-ignore */
+  --green-drop:
+    drop-shadow(0 0 2px hsl(120 100% 80%))
+    drop-shadow(0 0 8px green);
   color-scheme: dark;
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font);
+  font-size: 21px;
   color: var(--text);
 }
 
@@ -24,10 +51,31 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--screen-glow) 14%, transparent) 0%, transparent 55%),
-    var(--ambient-bg);
-  transition: background-color 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  background: var(--ambient-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+h1,
+span,
+button,
+label,
+dt,
+dd,
+p,
+a {
+  line-height: 1;
 }
 
 .app {
@@ -35,143 +83,443 @@ body {
   height: 100%;
 }
 
+/*
+ * The picture comes on like a CRT: a bright line, then the whole frame. Done with a clip, not a
+ * scale: the 3D canvas measures its container when it mounts, and a scaled container measures 0x0.
+ */
+.crt-on {
+  position: absolute;
+  inset: 0;
+  animation: crt-on 1.2s 0.2s both;
+  animation-timing-function: cubic-bezier(0.2, -0.1, 0, 1);
+}
+
+@keyframes crt-on {
+  0% {
+    clip-path: inset(50% 50% 50% 50%);
+    filter: brightness(15);
+  }
+  20% {
+    clip-path: inset(49% 10% 49% 10%);
+    filter: brightness(15);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: brightness(1);
+  }
+}
+
 .stage {
   position: absolute;
   inset: 0;
 }
 
-.topbar {
+.backdrop-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Smoothing stays on: the worker has already enlarged the art with hard edges. */
+.backdrop {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.backdrop-ready {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------ text and icons */
+
+.ui {
+  position: absolute;
+  inset: 0;
+  padding: 30px;
+  padding-bottom: calc(30px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.ui > * {
+  pointer-events: auto;
+}
+
+.wordmark,
+.station,
+.power-hint,
+.help,
+[data-tip]::after {
+  color: var(--text);
+  text-shadow: var(--green-glow);
+}
+
+.red {
+  color: var(--text);
+  text-shadow: var(--red-glow);
+}
+
+.icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding: 2px;
+  color: var(--text);
+}
+
+.icon:focus-visible {
+  outline: none;
+}
+
+.pixel-icon {
+  display: block;
+  filter: var(--green-drop);
+  transition:
+    transform 0.15s,
+    filter 0.15s;
+}
+
+.icon:hover .pixel-icon,
+.icon:focus-visible .pixel-icon {
+  transform: scale(1.12);
+}
+
+.icon.active .pixel-icon {
+  filter: drop-shadow(0 0 2px hsl(0 100% 80%)) drop-shadow(0 0 8px red);
+}
+
+/* Hover text, as on lofi.cafe: the name in the same glowing type, under the top icons. */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s steps(2);
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+}
+
+/* Above the player's controls instead, since they sit at the bottom. */
+.player [data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+  right: auto;
+  left: 2px;
+}
+
+.top-ui {
   position: absolute;
   inset: 0 0 auto 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: max(16px, env(safe-area-inset-top)) 20px 0;
+  padding: max(30px, env(safe-area-inset-top)) 30px 0;
   pointer-events: none;
+}
+
+.top-ui > * {
+  pointer-events: auto;
 }
 
 .wordmark {
   margin: 0;
-  font-size: clamp(20px, 3vw, 30px);
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  color: var(--text);
-  text-shadow: 0 0 18px color-mix(in srgb, var(--ambient-accent) 45%, transparent);
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
-.toolbar {
-  display: flex;
-  gap: 8px;
-  pointer-events: auto;
-}
-
-.icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-
-.icon-btn:hover,
-.icon-btn:focus-visible {
-  border-color: color-mix(in srgb, var(--ambient-accent) 60%, transparent);
-  outline: none;
-}
-
-.power-hint {
-  position: absolute;
-  left: 50%;
-  bottom: max(28px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+.icons {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 20px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #ff4d4d 45%, transparent);
-  background: var(--panel);
-  color: #ffb3b3;
-  font: inherit;
-  font-size: 14px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  animation: pulse 2.4s ease-in-out infinite;
+  margin-top: -6px;
 }
 
-.power-glyph {
-  font-size: 18px;
-  color: #ff6b6b;
-}
+/* ------------------------------------------------------------------ help */
 
-@keyframes pulse {
-  50% {
-    box-shadow: 0 0 24px rgb(255 77 77 / 0.25);
-  }
-}
-
+/* Right-aligned lines under the icons: the key glowing red, what it does in white. */
 .help {
   position: absolute;
-  top: 72px;
-  right: 20px;
-  width: min(300px, calc(100vw - 32px));
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  backdrop-filter: blur(12px);
-  font-size: 13px;
-}
-
-.help h2 {
-  margin: 0 0 10px;
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ambient-accent);
+  top: 70px;
+  right: 30px;
+  display: grid;
+  justify-items: end;
+  gap: 18px;
+  padding: 40px 0 14px 60px;
+  text-align: right;
+  /* A soft shadow behind the lines, so they stay readable over the brightest signs. */
+  background: radial-gradient(ellipse at 100% 50%, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.65) 55%, transparent 82%);
 }
 
 .help dl {
   margin: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  justify-items: end;
 }
 
 .help dl div {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 1.5ch;
 }
 
 .help dt {
-  color: var(--text);
-  font-weight: 600;
+  text-shadow: var(--red-glow);
 }
 
 .help dd {
   margin: 0;
-  color: var(--text-dim);
-  text-align: right;
 }
 
 .help-note {
-  margin: 12px 0 0;
-  color: var(--text-dim);
-  font-size: 12px;
+  max-width: 300px;
+  margin: 0;
+  font-size: 17px;
+  opacity: 0.8;
+}
+
+.credit {
+  margin: 0;
+}
+
+.credit a {
+  text-decoration: none;
+}
+
+.credit a:hover,
+.credit a:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ------------------------------------------------------------------ power and music */
+
+.power-hint {
+  position: absolute;
+  left: 50%;
+  /* Above the music player's line, which can run long under it. */
+  bottom: calc(130px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  white-space: nowrap;
+  animation: blink 1.6s steps(1) infinite;
+}
+
+@keyframes blink {
+  60% {
+    opacity: 0.35;
+  }
+}
+
+.player {
+  position: absolute;
+  left: 30px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 14px;
+  max-width: min(720px, calc(100vw - 60px));
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -5px;
+}
+
+/* Eleven chunky segments, lit or dark, like the bar on a cassette deck. */
+.volume {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  filter: var(--green-drop);
+}
+
+.volume:focus-visible {
+  outline: 1px dashed var(--text);
+  outline-offset: 4px;
+}
+
+.volume span {
+  width: 5px;
+  height: 17px;
+  background: var(--text);
+}
+
+.volume span.off {
+  opacity: 0.25;
+}
+
+.station {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.station .dots {
+  display: inline-block;
+  width: 4ch;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+/* Playing: four little pixel bars bouncing, like lofi.cafe's visualizer. */
+.visualizer {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 4ch;
+  height: 15px;
+  vertical-align: -1px;
+  filter: var(--green-drop);
+}
+
+.visualizer i {
+  width: 3px;
+  height: 15px;
+  background: var(--text);
+  animation: bar 0.9s steps(4) infinite alternate;
+}
+
+.visualizer i:nth-child(1) {
+  animation-duration: 0.7s;
+}
+
+.visualizer i:nth-child(2) {
+  animation-duration: 0.45s;
+  animation-delay: -0.2s;
+}
+
+.visualizer i:nth-child(3) {
+  animation-duration: 0.8s;
+  animation-delay: -0.5s;
+}
+
+.visualizer i:nth-child(4) {
+  animation-duration: 0.55s;
+  animation-delay: -0.1s;
+}
+
+@keyframes bar {
+  from {
+    height: 3px;
+  }
+  to {
+    height: 15px;
+  }
+}
+
+/* While music plays, the dots count up like a loading bar. */
+.station .dots.live {
+  animation: dots 2s steps(5) infinite;
+}
+
+@keyframes dots {
+  from {
+    width: 0;
+  }
+  to {
+    width: 5ch;
+  }
+}
+
+/* ------------------------------------------------------------------ CRT */
+
+/* An RGB phosphor mask of fine horizontal stripes, rolling down the screen. */
+.crt-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  background-image: linear-gradient(
+    to bottom,
+    #08040c 0 13%,
+    #2a48d8 15% 29%,
+    #000045 31% 37%,
+    #34c84a 41% 58%,
+    #002a00 61% 65%,
+    #e8561c 69% 86%,
+    #2a0800 90% 100%
+  );
+  background-size: 100% 5px;
+  animation: roll 150s linear infinite;
+}
+
+@keyframes roll {
+  to {
+    background-position: 0 500px;
+  }
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgb(0 0 0 / 0.75) 100%);
+  opacity: 0.6;
+}
+
+/* Low-power mode: no overlays, no glows. */
+.low-energy .crt-lines,
+.low-energy .vignette {
+  display: none;
+}
+
+.low-energy *,
+.low-energy [data-tip]::after {
+  text-shadow: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  .ui,
+  .top-ui {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .player {
+    left: 20px;
+    max-width: calc(100vw - 40px);
+  }
+  .help {
+    right: 20px;
+  }
+  .hide-small-screen {
+    display: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .power-hint {
+  .crt-on,
+  .crt-lines,
+  .power-hint,
+  .station .dots.live,
+  .visualizer i {
     animation: none;
   }
-  body {
+  .backdrop {
     transition: none;
   }
 }

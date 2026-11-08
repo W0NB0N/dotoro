@@ -7,6 +7,7 @@ export { GALLERY, SPRITES } from './assets';
 export { pomodoroApp } from './pomodoro';
 export { snakeApp } from './snake';
 export { bootApp, galleryApp, menuApp, themesApp } from './system';
+export * from './hud';
 export * from './vfd';
 
 /** Built-in apps, in menu order. */
