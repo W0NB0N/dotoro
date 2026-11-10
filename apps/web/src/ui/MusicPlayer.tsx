@@ -102,18 +102,14 @@ export function MusicPlayer() {
         </div>
       </div>
       <button className="station" onClick={() => music.next(1)} title="Next song [L]">
-        {playing && !loading ? (
-          <span className="visualizer" aria-hidden>
-            <i />
-            <i />
-            <i />
-            <i />
-          </span>
-        ) : (
-          <span className={`dots${loading ? ' live' : ''}`} aria-hidden>
-            ....
-          </span>
-        )}{' '}
+        {/* Paused, the bars rest at one pixel each, so they read as dots that grow into the visualizer on
+            play; loading, those dots light up one by one. */}
+        <span className={`visualizer${loading ? ' resting loading' : playing ? '' : ' resting'}`} aria-hidden>
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>{' '}
         <span className="red">click to change</span> <span aria-hidden>›</span>{' '}
         <span className="station-name">{station.name}</span>
       </button>
