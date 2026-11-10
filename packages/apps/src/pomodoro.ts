@@ -1,5 +1,6 @@
 import type { AppDefinition, Gfx } from '@dotoro/kernel';
 import { SPRITES } from './assets';
+import { POMODORO_ICON } from './icons';
 import {
   bindVfdRoles,
   COLON_DOTS,
@@ -51,7 +52,13 @@ export const pomodoroApp: AppDefinition = {
   id: 'pomodoro',
   title: 'Pomodoro',
   showInMenu: true,
-  menuLines: ['POMO', 'DORO'],
+  category: 'tools',
+  icon: POMODORO_ICON,
+  hints: [
+    { keys: ['left', 'right'], action: 'min / sec' },
+    { keys: ['up', 'down'], action: 'set' },
+    { keys: ['enter'], action: 'start / pause' },
+  ],
   create(ctx) {
     const s: PomodoroState = {
       session: 0,

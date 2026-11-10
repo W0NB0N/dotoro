@@ -185,7 +185,7 @@ function Lighting({ accent }: { accent: string }) {
   );
 }
 
-export function Scene({ accent }: { accent: string }) {
+export function Scene({ accent, onDeviceReady }: { accent: string; onDeviceReady: () => void }) {
   const dragging = useRef(false);
   const zoomed = useRef(false);
   const screenPose = useRef<ScreenPose | null>(null);
@@ -195,6 +195,7 @@ export function Scene({ accent }: { accent: string }) {
     <>
       <Backdrop handle={backdrop} />
       <Canvas
+      className="scene-canvas"
       shadows="percentage"
       dpr={[1, 2]}
       camera={{ position: HOME_POSITION.toArray(), fov: 42 }}
@@ -207,7 +208,7 @@ export function Scene({ accent }: { accent: string }) {
       <Lighting accent={accent} />
       <Suspense fallback={null}>
         <group position={DOTORO_POSITION} scale={DOTORO_SCALE}>
-          <DotoroModel screenPose={screenPose} onScreenDoubleClick={() => (zoomed.current = !zoomed.current)} />
+          <DotoroModel screenPose={screenPose} onScreenDoubleClick={() => (zoomed.current = !zoomed.current)} onReady={onDeviceReady} />
         </group>
       </Suspense>
       <ContactShadows position={[0, -0.74, DOTORO_POSITION[2]]} opacity={0.85} scale={5} blur={1.6} far={1.5} />

@@ -1,12 +1,15 @@
 import type { AppDefinition } from '@dotoro/kernel';
+import { menuApp } from './menu';
 import { pomodoroApp } from './pomodoro';
 import { snakeApp } from './snake';
-import { bootApp, galleryApp, menuApp, themesApp } from './system';
+import { bootApp, galleryApp, themesApp } from './system';
 
 export { GALLERY, SPRITES } from './assets';
 export { pomodoroApp } from './pomodoro';
 export { snakeApp } from './snake';
-export { bootApp, galleryApp, menuApp, themesApp } from './system';
+export { menuApp } from './menu';
+export { bootApp, galleryApp, themesApp } from './system';
+export * from './chrome';
 export * from './hud';
 export * from './vfd';
 

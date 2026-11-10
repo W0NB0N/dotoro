@@ -1,4 +1,5 @@
 import { type AppDefinition, type Color, DIRECTIONS, FONT_3X5, hex, isDirection, measureText, mix } from '@dotoro/kernel';
+import { SNAKE_ICON } from './icons';
 
 /**
  * Snake keeps its own "cartridge" palette rather than the theme's: the pea-soup LCD, unless the
@@ -38,8 +39,11 @@ const LOOP_PATH: readonly (readonly [number, number])[] = [
 ];
 
 const LOOP_STEP_MS = 120;
-/** Ignore input briefly after dying so a held direction doesn't restart instantly. */
-const RESTART_LOCKOUT_MS = 350;
+/** The snake flashes where it died, as on the old phones, before the score comes up. */
+const DEATH_FLASH_MS = 700;
+const DEATH_FLASH_STEP_MS = 120;
+/** Ignore input through the flash, so a held direction doesn't restart instantly. */
+const RESTART_LOCKOUT_MS = DEATH_FLASH_MS;
 
 type Cell = readonly [number, number];
 type Vec = readonly [number, number];
@@ -49,10 +53,17 @@ export const snakeApp: AppDefinition = {
   id: 'snake',
   title: 'Snake',
   showInMenu: true,
+  category: 'games',
+  icon: SNAKE_ICON,
+  hints: [
+    { keys: ['up', 'down', 'left', 'right'], action: 'steer' },
+    { keys: ['enter'], action: 'start' },
+  ],
   create(ctx) {
     let state: 'start' | 'alive' | 'over' = 'start';
     let stateSince = ctx.now();
     let highScore = ctx.store.get<number>('highScore') ?? 0;
+    let newBest = false;
 
     let snake: Cell[] = [];
     let direction: Vec = DIRECTIONS.up;
@@ -97,7 +108,8 @@ export const snakeApp: AppDefinition = {
     const die = () => {
       state = 'over';
       stateSince = ctx.now();
-      if (score > highScore) {
+      newBest = score > highScore;
+      if (newBest) {
         highScore = score;
         ctx.store.set('highScore', highScore);
       }
@@ -161,14 +173,16 @@ export const snakeApp: AppDefinition = {
         if (scan !== BG) for (let y = 1; y < g.height; y += 2) g.fillRect(0, y, g.width, 1, scan);
         g.strokeRect(1, 5, 30, 26, FRAME);
 
-        if (state === 'alive') {
+        const sinceChange = now - stateSince;
+        const dying = state === 'over' && sinceChange < DEATH_FLASH_MS;
+        if (state === 'alive' || dying) {
           g.textCentered(String(score), 0, FG, FONT_3X5);
           for (const [x, y] of apples) g.pixel(x, y, APPLE);
-          for (const [x, y] of snake) g.pixel(x, y, FG);
+          if (!dying || Math.floor(sinceChange / DEATH_FLASH_STEP_MS) % 2 === 1) for (const [x, y] of snake) g.pixel(x, y, FG);
           return;
         }
 
-        g.textCentered(state === 'start' ? 'SNAKE' : 'OVER', 7, FG, FONT_3X5);
+        g.textCentered(state === 'start' ? 'SNAKE' : newBest ? 'BEST' : 'OVER', 7, FG, FONT_3X5);
         const frame = Math.floor((now - stateSince) / LOOP_STEP_MS);
         for (let i = 0; i < 9; i++) {
           const [x, y] = LOOP_PATH[(((frame - i) % 10) + 10) % 10]!;

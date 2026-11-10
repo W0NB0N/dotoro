@@ -1,9 +1,8 @@
 import { type Color, type Gfx, mix, type Theme } from '@dotoro/kernel';
 
 /**
- * Screen chrome for themes that ask for it (`style.hud`): faint scanlines, corner brackets with a
- * blinking status light, text with a chromatic fringe, and short glitches that tear a few rows
- * sideways. Everything is drawn from the theme's own palette, so it works for any theme.
+ * Screen chrome for themes that ask for it (`style.hud`): faint scanlines, text with a chromatic
+ * fringe, and short glitches that tear a few rows sideways. Everything is drawn from the theme's own palette, so it works for any theme.
  */
 
 export const hasHud = (theme: Theme): boolean => theme.style?.hud === true;
@@ -27,29 +26,6 @@ export function scanlines(g: Gfx, theme: Theme): void {
 export function fringeFor(theme: Theme, color: Color): Color {
   const p = theme.screen;
   return mix(p.background, color === p.accent ? p.foreground : p.accent, 0.7);
-}
-
-/** Corner brackets, the top-left one hot, and a status light blinking in the top-right. */
-export function hudFrame(g: Gfx, theme: Theme, now: number): void {
-  const p = theme.screen;
-  const w = g.width - 1;
-  const h = g.height - 1;
-  const dim = p.secondary;
-  for (const [x, y, dx, dy] of [
-    [0, 0, 1, 1],
-    [w, 0, -1, 1],
-    [0, h, 1, -1],
-    [w, h, -1, -1],
-  ] as const) {
-    g.pixel(x, y, dim);
-    g.pixel(x + dx, y, dim);
-    g.pixel(x + dx * 2, y, dim);
-    g.pixel(x, y + dy, dim);
-    g.pixel(x, y + dy * 2, dim);
-  }
-  g.pixel(0, 0, p.accent);
-  g.pixel(w, h, p.foreground);
-  if (Math.floor(now / 600) % 2 === 0) g.pixel(w - 2, 2, p.danger);
 }
 
 /**

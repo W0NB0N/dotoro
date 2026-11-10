@@ -1,6 +1,7 @@
 /** Behaviour that is new in the TS port (wall-clock timers, persistence, determinism). */
 import { describe, expect, it } from 'vitest';
-import { MemoryStore } from '@dotoro/kernel';
+import { type Button, MemoryStore } from '@dotoro/kernel';
+import { DEFAULT_APPS, ICON_CHARS } from '../src';
 import { boot } from './helpers';
 
 function openPomodoro() {
@@ -137,5 +138,107 @@ describe('snake', () => {
     sim.run(5_000); // runs straight into the top wall
     expect(sim.audio.calls).toContain('play:die');
     expect(store.get('data:snake:highScore')).toBe(7);
+  });
+});
+
+describe('menu', () => {
+  const home = (store = new MemoryStore()) => {
+    const sim = boot({ store });
+    sim.kernel.powerOn({ skipBoot: true });
+    sim.run(20);
+    return sim;
+  };
+  const press = (sim: ReturnType<typeof boot>, ...buttons: Button[]) => {
+    for (const button of buttons) {
+      sim.kernel.input(button);
+      sim.run(20);
+    }
+  };
+  const opened = (sim: ReturnType<typeof boot>) => {
+    press(sim, 'enter');
+    return sim.kernel.activeApp;
+  };
+
+  it('opens on the tools shelf, at the timer', () => {
+    expect(opened(home())).toBe('pomodoro');
+  });
+
+  it('turns the carousel in both directions and wraps around', () => {
+    const forward = home();
+    press(forward, 'right', 'right', 'right');
+    expect(opened(forward)).toBe('pomodoro');
+    const backward = home();
+    press(backward, 'left');
+    expect(opened(backward)).toBe('gallery');
+  });
+
+  it('changes shelf with up and down', () => {
+    for (const button of ['up', 'down'] as const) {
+      const sim = home();
+      press(sim, button);
+      expect(opened(sim)).toBe('snake');
+    }
+  });
+
+  it('stays put when browsing a shelf with one app', () => {
+    const sim = home();
+    press(sim, 'down', 'right', 'left', 'left');
+    expect(opened(sim)).toBe('snake');
+  });
+
+  it('remembers its place on each shelf', () => {
+    const sim = home();
+    press(sim, 'right', 'down', 'up');
+    expect(opened(sim)).toBe('themes');
+  });
+
+  it('remembers its place across reloads', () => {
+    const store = new MemoryStore();
+    const before = home(store);
+    press(before, 'right');
+    before.kernel.persist();
+    expect(opened(home(store))).toBe('themes');
+  });
+
+  it('starts cleanly from a save written by the old flat menu', () => {
+    const store = new MemoryStore({ 'app:menu:state': { index: 3 } });
+    expect(opened(home(store))).toBe('pomodoro');
+  });
+
+  it('sounds out moving, opening and going back', () => {
+    const sim = home();
+    press(sim, 'right');
+    expect(sim.audio.calls).toContain('play:blip');
+    press(sim, 'enter');
+    expect(sim.audio.calls).toContain('play:select');
+    press(sim, 'menu');
+    expect(sim.audio.calls).toContain('play:back');
+  });
+
+  it('has no back sound on the home screen', () => {
+    const sim = home();
+    press(sim, 'menu');
+    expect(sim.audio.calls).not.toContain('play:back');
+  });
+
+  it('draws the same picture for the same state', () => {
+    const a = home();
+    const b = home();
+    expect(a.kernel.screen.toHexString()).toBe(b.kernel.screen.toHexString());
+  });
+
+  const shelved = DEFAULT_APPS.filter((app) => app.showInMenu);
+
+  it.each(shelved.map((app) => [app.id, app] as const))('%s has a shelf, an icon and key hints', (_, app) => {
+    expect(app.category).toBeDefined();
+    expect(app.hints?.length).toBeGreaterThan(0);
+    expect(app.icon?.frames.length).toBeGreaterThan(0);
+    for (const frame of app.icon!.frames) {
+      expect(frame).toHaveLength(16);
+      for (const row of frame) {
+        expect(row).toHaveLength(16);
+        for (const ch of row) expect(ICON_CHARS).toContain(ch);
+      }
+    }
   });
 });

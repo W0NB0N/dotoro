@@ -3,7 +3,7 @@
  * and color come from CSS like the text around them. Most are lofi.cafe's 9×9 icons (icons/ in the
  * repo), rasterized; each pixel is drawn `scale` CSS pixels wide so every icon shares one grid.
  */
-export function PixelIcon({ rows, scale = 3 }: { rows: readonly string[]; scale?: number }) {
+export function PixelIcon({ rows, scale = 2.55 }: { rows: readonly string[]; scale?: number }) {
   const w = rows[0]!.length;
   const h = rows.length;
   return (
@@ -30,6 +30,9 @@ export const ICON = {
   shuffle: ['.........', '......#..', '.##...##.', '..#.###..', '....#....', '..###.#..', '.##...##.', '......#..', '.........'],
   fullscreen: ['.........', '.....###.', '......##.', '.....#.#.', '.........', '.#.#.....', '.##......', '.###.....', '.........'],
   fullscreenExit: ['.........', '.....#.#.', '.....##..', '.....###.', '.........', '.###.....', '..##.....', '.#.#.....', '.........'],
+  power: ['....#....', '.#..#..#.', '#...#...#', '#...#...#', '#...#...#', '#.......#', '.#.....#.', '..#####..', '.........'],
+  // A chunky chevron; the other directions are this one turned (see KeyLegend).
+  arrow: ['##....', '###...', '.###..', '..###.', '...###', '...###', '..###.', '.###..', '###...', '##....'],
   about: ['.........', '..#...#..', '.###.###.', '.#######.', '.#######.', '..#####..', '...###...', '....#....', '.........'],
   // A speaker with two sound waves.
   soundOn: [
