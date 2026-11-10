@@ -126,7 +126,13 @@ export class WebAudioHost implements AudioSink {
         beeps(ctx, out, [[0, 440, 0.12], [0.12, 330, 0.12], [0.24, 220, 0.25]], 0.15);
         break;
       case 'blip':
-        beeps(ctx, out, [[0, 1200, 0.04]], 0.1);
+        beeps(ctx, out, [[0, 900, 0.035]], 0.07);
+        break;
+      case 'select':
+        beeps(ctx, out, [[0, 660, 0.05], [0.05, 990, 0.09]], 0.1);
+        break;
+      case 'back':
+        beeps(ctx, out, [[0, 660, 0.05], [0.05, 440, 0.09]], 0.1);
         break;
       case 'click':
         this.keyClick();

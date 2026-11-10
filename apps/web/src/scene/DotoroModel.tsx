@@ -56,6 +56,9 @@ const SPRING = 22;
 
 const FLOOR_SIZE = 10;
 
+/** The first frames compile shaders and hitch, so "ready" waits until they are past. */
+const READY_AFTER_FRAMES = 3;
+
 type Nodes = Record<string, THREE.Mesh>;
 
 /** Where the screen is in the world, for the glow and the zoom camera. */
@@ -95,9 +98,10 @@ function measureScreen(mesh: THREE.Mesh): ScreenPose {
 interface Props {
   screenPose: React.RefObject<ScreenPose | null>;
   onScreenDoubleClick: () => void;
+  onReady: () => void;
 }
 
-export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
+export function DotoroModel({ screenPose, onScreenDoubleClick, onReady }: Props) {
   const { nodes } = useGLTF(MODEL_URL) as unknown as { nodes: Nodes };
   const screen = useMemo(() => createScreen(host.kernel), []);
   const keyRefs = useRef<Partial<Record<string, THREE.Mesh>>>({});
@@ -105,6 +109,7 @@ export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
   const flicks = useRef<Record<string, number>>({});
 
   const screenRef = useRef<THREE.Mesh>(null);
+  const framesDrawn = useRef(0);
 
   const lit = useMemo(() => {
     const copies = new Map<string, THREE.Material>();
@@ -159,6 +164,7 @@ export function DotoroModel({ screenPose, onScreenDoubleClick }: Props) {
   );
 
   useFrame((state, delta) => {
+    if (framesDrawn.current < READY_AFTER_FRAMES && ++framesDrawn.current === READY_AFTER_FRAMES) onReady();
     screen.update(delta);
     for (const [name, button] of Object.entries(KEYS)) {
       const mesh = keyRefs.current[name];

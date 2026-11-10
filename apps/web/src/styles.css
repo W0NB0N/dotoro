@@ -3,6 +3,8 @@
  * red for the things you can act on, pixel icons, scanlines with an RGB mask, and a vignette.
  */
 :root {
+  /* Where Dotoro sits. The camera fits the window's height, so its size in vh is fixed. */
+  --device-y: 45.4%;
   --ambient-bg: #0a0818;
   --ambient-accent: #ff3fa8;
   --screen-glow: #2fe0f0;
@@ -83,32 +85,6 @@ a {
   height: 100%;
 }
 
-/*
- * The picture comes on like a CRT: a bright line, then the whole frame. Done with a clip, not a
- * scale: the 3D canvas measures its container when it mounts, and a scaled container measures 0x0.
- */
-.crt-on {
-  position: absolute;
-  inset: 0;
-  animation: crt-on 1.2s 0.2s both;
-  animation-timing-function: cubic-bezier(0.2, -0.1, 0, 1);
-}
-
-@keyframes crt-on {
-  0% {
-    clip-path: inset(50% 50% 50% 50%);
-    filter: brightness(15);
-  }
-  20% {
-    clip-path: inset(49% 10% 49% 10%);
-    filter: brightness(15);
-  }
-  100% {
-    clip-path: inset(0 0 0 0);
-    filter: brightness(1);
-  }
-}
-
 .stage {
   position: absolute;
   inset: 0;
@@ -130,8 +106,69 @@ a {
   transition: opacity 0.9s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.backdrop-ready {
+[data-intro='room'] .backdrop-ready,
+[data-intro='ui'] .backdrop-ready {
   opacity: 1;
+}
+
+/* ------------------------------------------------------------------ startup */
+
+/*
+ * Dotoro opens vertically, bright, in one unbroken motion; then the room breathes in behind it.
+ * Only transform, opacity and filter move, so the compositor runs it and a busy main thread can't
+ * make it stutter, and nothing is filled forwards, so no filter stays on afterwards. The 3D canvas
+ * measures itself when it mounts and a squashed canvas measures 0, so its transform waits for
+ * `device`.
+ */
+[data-intro='waiting'] .scene-canvas {
+  opacity: 0;
+}
+
+[data-intro='device'] .scene-canvas {
+  transform-origin: 50% var(--device-y);
+  animation: device-on 0.9s backwards;
+}
+
+/* Each property eases on its own: the shape opens fast and settles, the glow fades slower. */
+@keyframes device-on {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.02);
+    filter: brightness(3);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+    filter: brightness(1);
+  }
+}
+
+/* `ui` too, so the animation isn't cut off when the controls come in partway through it. */
+[data-intro='room'] .backdrop-host,
+[data-intro='ui'] .backdrop-host {
+  animation: room-in 1.6s backwards;
+}
+
+@keyframes room-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+    animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-host {
+    animation: none !important;
+  }
 }
 
 /* ------------------------------------------------------------------ text and icons */
@@ -142,6 +179,14 @@ a {
   padding: 30px;
   padding-bottom: calc(30px + env(safe-area-inset-bottom));
   pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease-out;
+}
+
+[data-intro='ui'] .ui {
+  visibility: visible;
+  opacity: 1;
 }
 
 .ui > * {
@@ -205,6 +250,11 @@ a {
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s steps(2);
+  /* A soft patch of dark, so the words hold up over the brightest signs. */
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.5);
+  box-shadow: 0 0 10px 6px rgb(0 0 0 / 0.5);
 }
 
 [data-tip]:hover::after,
@@ -260,8 +310,18 @@ a {
   gap: 18px;
   padding: 40px 0 14px 60px;
   text-align: right;
-  /* A soft shadow behind the lines, so they stay readable over the brightest signs. */
-  background: radial-gradient(ellipse at 100% 50%, rgb(0 0 0 / 0.85) 0%, rgb(0 0 0 / 0.65) 55%, transparent 82%);
+  isolation: isolate;
+}
+
+/* A soft shadow behind the lines, running off the right of the screen so it has no edge there. */
+.help::before {
+  content: '';
+  position: absolute;
+  inset: 24px -160px 0 14px;
+  z-index: -1;
+  background: rgb(0 0 0 / 0.72);
+  filter: blur(36px);
+  pointer-events: none;
 }
 
 .help dl {
@@ -318,6 +378,13 @@ a {
   animation: blink 1.6s steps(1) infinite;
 }
 
+.power-hint .pixel-icon {
+  display: inline-block;
+  vertical-align: -3px;
+  margin-left: 2px;
+  filter: drop-shadow(0 0 2px hsl(0 100% 80%)) drop-shadow(0 0 8px red);
+}
+
 @keyframes blink {
   60% {
     opacity: 0.35;
@@ -352,7 +419,6 @@ a {
   margin-left: 8px;
   padding: 4px 0;
   cursor: pointer;
-  filter: var(--green-drop);
 }
 
 .volume:focus-visible {
@@ -360,10 +426,12 @@ a {
   outline-offset: 4px;
 }
 
+/* The glow goes on the segments, not the control: on the control it would light up the hover text's patch too. */
 .volume span {
   width: 5px;
   height: 17px;
   background: var(--text);
+  filter: var(--green-drop);
 }
 
 .volume span.off {
@@ -377,19 +445,11 @@ a {
   text-overflow: ellipsis;
 }
 
-.station .dots {
-  display: inline-block;
-  width: 4ch;
-  overflow: hidden;
-  vertical-align: bottom;
-}
-
 /* Playing: four little pixel bars bouncing, like lofi.cafe's visualizer. */
 .visualizer {
   display: inline-flex;
   align-items: flex-end;
   gap: 2px;
-  width: 4ch;
   height: 15px;
   vertical-align: -1px;
   filter: var(--green-drop);
@@ -421,6 +481,11 @@ a {
   animation-delay: -0.1s;
 }
 
+.visualizer.resting i {
+  height: 3px;
+  animation: none;
+}
+
 @keyframes bar {
   from {
     height: 3px;
@@ -430,18 +495,84 @@ a {
   }
 }
 
-/* While music plays, the dots count up like a loading bar. */
-.station .dots.live {
-  animation: dots 2s steps(5) infinite;
+/* Loading: the dots fill in from the left, 1, 2, 3, 4, then start again. */
+.visualizer.loading i:nth-child(2) {
+  animation: dot-2 1.6s step-end infinite;
 }
 
-@keyframes dots {
-  from {
-    width: 0;
+.visualizer.loading i:nth-child(3) {
+  animation: dot-3 1.6s step-end infinite;
+}
+
+.visualizer.loading i:nth-child(4) {
+  animation: dot-4 1.6s step-end infinite;
+}
+
+@keyframes dot-2 {
+  0% {
+    opacity: 0;
   }
-  to {
-    width: 5ch;
+  25%,
+  100% {
+    opacity: 1;
   }
+}
+
+@keyframes dot-3 {
+  0% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes dot-4 {
+  0% {
+    opacity: 0;
+  }
+  75%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* What the keys do right now, like the instruction strip along the bottom of an old game. */
+.key-legend {
+  position: absolute;
+  right: 30px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 2.5ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: var(--green-glow-small);
+}
+
+.key-legend li {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+}
+
+.key-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-shadow: var(--red-glow);
+}
+
+.key-keys .pixel-icon {
+  filter: drop-shadow(0 0 2px hsl(0 100% 80%)) drop-shadow(0 0 8px red);
+}
+
+.key-keys kbd {
+  font: inherit;
 }
 
 /* ------------------------------------------------------------------ CRT */
@@ -483,7 +614,12 @@ a {
   opacity: 0.6;
 }
 
-/* Low-power mode: no overlays, no glows. */
+/* Low-power mode: no overlays, no glows. Pure white makes up for the light the glow was adding. */
+.low-energy {
+  --text: #fff;
+  color: var(--text);
+}
+
 .low-energy .crt-lines,
 .low-energy .vignette {
   display: none;
@@ -494,6 +630,13 @@ a {
   text-shadow: none !important;
   filter: none !important;
   box-shadow: none !important;
+}
+
+/* The player's long song titles need the row, and touch screens have the keys to look at. */
+@media (max-width: 1200px), (hover: none) {
+  .key-legend {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -515,12 +658,10 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .crt-on,
   .crt-lines,
   .power-hint,
-  .station .dots.live,
   .visualizer i {
-    animation: none;
+    animation: none !important;
   }
   .backdrop {
     transition: none;

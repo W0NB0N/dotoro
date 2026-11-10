@@ -1,5 +1,5 @@
 /** Logical sound ids. The host maps them to real audio (samples or synthesis). */
-export type SoundId = 'boot' | 'alarm' | 'click' | 'blip' | 'eat' | 'die' | (string & {});
+export type SoundId = 'boot' | 'alarm' | 'click' | 'blip' | 'select' | 'back' | 'eat' | 'die' | (string & {});
 
 /** Where apps send sound requests. The kernel never touches Web Audio directly. */
 export interface AudioSink {

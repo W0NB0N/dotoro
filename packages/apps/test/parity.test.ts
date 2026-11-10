@@ -33,38 +33,42 @@ const KEYS: Record<string, Button> = {
   Menu: 'menu',
 };
 
+/** The prototype's home screen, in order. */
+const FLAT_MENU = ['pomodoro', 'snake', 'themes', 'gallery'];
+
 /** Max per-channel difference tolerated (VFD artwork is quantised from noisy PNG exports). */
 const TOLERANCE = 8;
 
-const centred = 'labels that fit are centred (prototype drew them left-aligned)';
-const longThemeName = 'long theme names scroll (marquee) instead of being truncated to "CATPP"';
+const shelves = 'the home screen became icon shelves; test/apps.test.ts covers it';
+const picker = 'the theme picker gained a title bar and swatches';
+const caption = 'the gallery shows the name along the bottom for a moment';
 const titleLoop = 'title loop animation phase starts when the screen opens';
 /** The cyberpunk theme's background, in the prototype and now. */
 const CYBERPUNK_BG: [string, string] = ['120458', '0a0818'];
 const recolored = 'gallery art with transparent areas shows the redesigned cyberpunk background';
 
 const DEVIATIONS: Record<string, { rows?: [number, number]; remap?: [string, string]; reason: string }> = {
-  'menu.snake': { rows: [12, 18], reason: centred },
-  'menu.theme': { rows: [12, 18], reason: centred },
-  'menu.gallery': { rows: [12, 18], reason: 'long labels hold, then scroll seamlessly (prototype scrolled from epoch time)' },
-  'themes.catppuccin': { rows: [13, 19], reason: longThemeName },
-  'themes.minimal': { rows: [13, 19], reason: longThemeName },
-  'themes.retrowave': { rows: [13, 19], reason: longThemeName },
-  'themes.forest': { rows: [13, 19], reason: longThemeName },
+  'menu.pomodoro': { rows: [0, 31], reason: shelves },
+  'menu.snake': { rows: [0, 31], reason: shelves },
+  'menu.theme': { rows: [0, 31], reason: shelves },
+  'menu.gallery': { rows: [0, 31], reason: shelves },
+  'menu.pomodoro.cyberpunk': { rows: [0, 31], reason: shelves },
+  'themes.catppuccin': { rows: [0, 31], reason: picker },
+  'themes.ocean': { rows: [0, 31], reason: picker },
+  'themes.minimal': { rows: [0, 31], reason: picker },
+  'themes.retrowave': { rows: [0, 31], reason: picker },
+  'themes.forest': { rows: [0, 31], reason: picker },
+  'themes.cyberpunk': { rows: [0, 31], reason: picker },
   'snake.start': { rows: [13, 15], reason: titleLoop },
   'snake.gameover': { rows: [13, 15], reason: titleLoop },
   'snake.alive.early': { rows: [6, 29], reason: 'first move waits one step; apple placement uses the seeded RNG' },
-  // The prototype's cyberpunk palette was replaced to match the neon city around the device, and
-  // the theme gained its HUD (scanlines, brackets, chromatic text, glitches).
-  'themes.cyberpunk': { rows: [0, 31], reason: 'cyberpunk theme redesigned for the neon scene' },
-  'menu.pomodoro.cyberpunk': { rows: [0, 31], reason: 'cyberpunk theme redesigned for the neon scene' },
   // Under the cyberpunk theme, only the background color changed: map it and compare the rest.
-  'gallery.0': { remap: CYBERPUNK_BG, reason: recolored },
-  'gallery.1': { remap: CYBERPUNK_BG, reason: recolored },
-  'gallery.2': { remap: CYBERPUNK_BG, reason: recolored },
-  'gallery.3': { remap: CYBERPUNK_BG, reason: recolored },
-  'gallery.4': { remap: CYBERPUNK_BG, reason: recolored },
-  'gallery.5': { remap: CYBERPUNK_BG, reason: recolored },
+  'gallery.0': { rows: [25, 31], remap: CYBERPUNK_BG, reason: `${recolored}; ${caption}` },
+  'gallery.1': { rows: [25, 31], remap: CYBERPUNK_BG, reason: `${recolored}; ${caption}` },
+  'gallery.2': { rows: [25, 31], remap: CYBERPUNK_BG, reason: `${recolored}; ${caption}` },
+  'gallery.3': { rows: [25, 31], remap: CYBERPUNK_BG, reason: `${recolored}; ${caption}` },
+  'gallery.4': { rows: [25, 31], remap: CYBERPUNK_BG, reason: `${recolored}; ${caption}` },
+  'gallery.5': { rows: [25, 31], remap: CYBERPUNK_BG, reason: `${recolored}; ${caption}` },
 };
 
 function diff(expected: string, actual: string, ignore?: [number, number], remap?: [string, string]) {
@@ -84,11 +88,20 @@ describe('parity with the Python prototype', () => {
   // Seed chosen so no apple spawns in the snake's straight path (the Python run scored 0 too).
   const sim = boot({ epoch: fixture.epochMs, seed: 2 });
   const results: { name: string; mismatches: string[] }[] = [];
+  let flatMenuIndex = 0;
 
   for (const op of fixture.timeline) {
     sim.at(op.t);
     if (op.op === 'key') {
-      sim.kernel.input(KEYS[op.key!]!);
+      const button = KEYS[op.key!]!;
+      // The recording walks the prototype's flat list, which the shelves replaced.
+      if (sim.kernel.activeApp === 'menu' && (button === 'left' || button === 'right')) {
+        flatMenuIndex = Math.max(0, Math.min(FLAT_MENU.length - 1, flatMenuIndex + (button === 'left' ? -1 : 1)));
+      } else if (sim.kernel.activeApp === 'menu' && button === 'enter') {
+        sim.kernel.launch(FLAT_MENU[flatMenuIndex]!);
+      } else {
+        sim.kernel.input(button);
+      }
     } else {
       const actual = sim.kernel.screen.toHexString();
       const deviation = DEVIATIONS[op.name!];

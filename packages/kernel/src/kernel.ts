@@ -210,7 +210,10 @@ export class Kernel {
     }
     if (!this.isPowered) return;
     if (button === 'menu') {
-      if (kind === 'press') this.launch(this.homeApp);
+      if (kind === 'press' && this.activeId !== this.homeApp) {
+        this.audio.play('back');
+        this.launch(this.homeApp);
+      }
       return;
     }
     const active = this.activeId ? this.running.get(this.activeId) : undefined;

@@ -1,9 +1,9 @@
 import type { AudioSink } from './audio';
 import type { Gfx } from './gfx';
-import type { InputEvent } from './input';
+import type { Button, InputEvent } from './input';
 import type { Rng } from './rng';
 import type { KeyValueStore } from './storage';
-import type { PaletteRole, Theme } from './theme';
+import type { Theme } from './theme';
 
 /**
  * A program running on Dotoro. Every hook is optional except `render`.
@@ -60,14 +60,28 @@ export interface AppContext {
   persist(): void;
 }
 
+/** The shelf an app sits on in the menu. */
+export type AppCategory = 'games' | 'tools';
+
+/** Menu art: equal-sized frames of text rows, one character per pixel. The menu defines the letters. */
+export interface AppIcon {
+  readonly frames: readonly (readonly string[])[];
+}
+
+/** What a set of keys does in an app, for the host to show next to the device. */
+export interface KeyHint {
+  readonly keys: readonly Button[];
+  readonly action: string;
+}
+
 export interface AppDefinition {
   id: string;
   /** Label shown in the menu. */
   title: string;
   showInMenu?: boolean;
-  /** Palette role for the menu label. Default 'accent'. */
-  menuColor?: PaletteRole;
-  /** Custom multi-line menu label (e.g. POMO / DORO). */
-  menuLines?: readonly string[];
+  /** Default 'tools'. */
+  category?: AppCategory;
+  icon?: AppIcon;
+  hints?: readonly KeyHint[];
   create(ctx: AppContext): App;
 }
